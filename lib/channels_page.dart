@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import 'favorites_store.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 
 class ChannelsPage extends StatefulWidget {
-  final IptvSource source; 
-  const ChannelsPage({super.key, required this.source});
+  final IptvSource source;
+  final String accountId;
+  const ChannelsPage({
+    super.key,
+    required this.source,
+    required this.accountId,
+  });
 
   @override
   State<ChannelsPage> createState() => _ChannelsPageState();
 }
 
 class _ChannelsPageState extends State<ChannelsPage> {
+  static const _favCat = '__fav__';
+
   late Future<void> _load;
   List<Category> _categories = [];
   List<Channel> _channels = [];
+  Set<String> _favs = {};
   String? _selectedCat;
   String _search = '';
 
@@ -30,6 +39,20 @@ class _ChannelsPageState extends State<ChannelsPage> {
     ]);
     _categories = results[0] as List<Category>;
     _channels = results[1] as List<Channel>;
+    _favs = await FavoritesStore.load(widget.accountId);
+  }
+
+  Future<void> _toggleFav(Channel ch) async {
+    setState(() {
+      if (!_favs.add(ch.id)) _favs.remove(ch.id);
+    });
+    await FavoritesStore.save(widget.accountId, _favs);
+  }
+
+  bool _inSelectedCategory(Channel c) {
+    if (_selectedCat == null) return true;
+    if (_selectedCat == _favCat) return _favs.contains(c.id);
+    return c.categoryId == _selectedCat;
   }
 
   @override
@@ -47,9 +70,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
           }
 
           final visible = _channels.where((c) {
-            final inCat = _selectedCat == null || c.categoryId == _selectedCat;
             final matches = c.name.toLowerCase().contains(_search.toLowerCase());
-            return inCat && matches;
+            return _inSelectedCategory(c) && matches;
           }).toList();
 
           return Row(
@@ -62,6 +84,12 @@ class _ChannelsPageState extends State<ChannelsPage> {
                       title: const Text('Todos'),
                       selected: _selectedCat == null,
                       onTap: () => setState(() => _selectedCat = null),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.star),
+                      title: Text('Favoritos (${_favs.length})'),
+                      selected: _selectedCat == _favCat,
+                      onTap: () => setState(() => _selectedCat = _favCat),
                     ),
                     for (final cat in _categories)
                       ListTile(
@@ -92,16 +120,21 @@ class _ChannelsPageState extends State<ChannelsPage> {
                         itemCount: visible.length,
                         itemBuilder: (context, i) {
                           final ch = visible[i];
+                          final isFav = _favs.contains(ch.id);
                           return ListTile(
                             leading: const Icon(Icons.tv),
                             title: Text(ch.name),
+                            trailing: IconButton(
+                              icon: Icon(isFav ? Icons.star : Icons.star_border),
+                              onPressed: () => _toggleFav(ch),
+                            ),
                             onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => PlayerPage(
-                                        title: ch.name,
-                                        url: ch.url,
-                                    ),
+                              MaterialPageRoute(
+                                builder: (_) => PlayerPage(
+                                  title: ch.name,
+                                  url: ch.url,
                                 ),
+                              ),
                             ),
                           );
                         },

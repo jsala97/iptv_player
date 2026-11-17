@@ -44,7 +44,9 @@ class _AccountsPageState extends State<AccountsPage> {
       }
       if (!mounted) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ChannelsPage(source: source)),
+        MaterialPageRoute(
+            builder: (_) => ChannelsPage(source: source, accountId: acc.id),
+        ),
       );
     } catch (e) {
       _snack('Error: $e');
