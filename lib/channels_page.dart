@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'favorites_store.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
+import 'recents_store.dart';
 
 class ChannelsPage extends StatefulWidget {
   final IptvSource source;
@@ -18,11 +19,13 @@ class ChannelsPage extends StatefulWidget {
 
 class _ChannelsPageState extends State<ChannelsPage> {
   static const _favCat = '__fav__';
+  static const _recentCat = '__recent__';
 
   late Future<void> _load;
   List<Category> _categories = [];
   List<Channel> _channels = [];
   Set<String> _favs = {};
+  List<String> _recents = [];
   String? _selectedCat;
   String _search = '';
 
@@ -40,6 +43,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
     _categories = results[0] as List<Category>;
     _channels = results[1] as List<Channel>;
     _favs = await FavoritesStore.load(widget.accountId);
+    _recents = await RecentsStore.load(widget.accountId);
   }
 
   Future<void> _toggleFav(Channel ch) async {
@@ -49,9 +53,26 @@ class _ChannelsPageState extends State<ChannelsPage> {
     await FavoritesStore.save(widget.accountId, _favs);
   }
 
+  Future<void> _play(Channel ch) async {
+    _recents.remove(ch.id);
+    _recents.insert(0, ch.id);
+    if (_recents.length > RecentsStore.maxItems) {
+      _recents = _recents.sublist(0, RecentsStore.maxItems);
+    }
+    await RecentsStore.save(widget.accountId, _recents);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlayerPage(title: ch.name, url: ch.url),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   bool _inSelectedCategory(Channel c) {
     if (_selectedCat == null) return true;
     if (_selectedCat == _favCat) return _favs.contains(c.id);
+    if (_selectedCat == _recentCat) return _recents.contains(c.id);
     return c.categoryId == _selectedCat;
   }
 
@@ -74,6 +95,12 @@ class _ChannelsPageState extends State<ChannelsPage> {
             return _inSelectedCategory(c) && matches;
           }).toList();
 
+          if (_selectedCat == _recentCat) {
+            visible.sort(
+              (a, b) => _recents.indexOf(a.id).compareTo(_recents.indexOf(b.id)),
+            );
+          }
+
           return Row(
             children: [
               SizedBox(
@@ -84,6 +111,12 @@ class _ChannelsPageState extends State<ChannelsPage> {
                       title: const Text('Todos'),
                       selected: _selectedCat == null,
                       onTap: () => setState(() => _selectedCat = null),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.history),
+                      title: const Text('Recientes'),
+                      selected: _selectedCat == _recentCat,
+                      onTap: () => setState(() => _selectedCat = _recentCat),
                     ),
                     ListTile(
                       leading: const Icon(Icons.star),
@@ -128,14 +161,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                               icon: Icon(isFav ? Icons.star : Icons.star_border),
                               onPressed: () => _toggleFav(ch),
                             ),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => PlayerPage(
-                                  title: ch.name,
-                                  url: ch.url,
-                                ),
-                              ),
-                            ),
+                            onTap: () => _play(ch),
                           );
                         },
                       ),
