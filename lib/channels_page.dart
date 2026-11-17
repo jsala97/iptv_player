@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'xtream_api.dart';
+import 'player_page.dart';
 
 class ChannelsPage extends StatefulWidget {
   final XtreamApi api;
@@ -94,7 +95,14 @@ class _ChannelsPageState extends State<ChannelsPage> {
                           return ListTile(
                             leading: const Icon(Icons.tv),
                             title: Text(ch.name),
-                            onTap: () => debugPrint(widget.api.streamUrl(ch.id)),
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => PlayerPage(
+                                        title: ch.name,
+                                        url: widget.api.streamUrl(ch.id),
+                                    ),
+                                ),
+                            ),
                           );
                         },
                       ),

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'xtream_api.dart';
 import 'channels_page.dart';
+import 'package:media_kit/media_kit.dart';
 
-void main() => runApp(const IptvApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+  runApp(const IptvApp());
+}
 
 class IptvApp extends StatelessWidget {
   const IptvApp({super.key});
