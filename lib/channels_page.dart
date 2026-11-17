@@ -53,17 +53,25 @@ class _ChannelsPageState extends State<ChannelsPage> {
     await FavoritesStore.save(widget.accountId, _favs);
   }
 
-  Future<void> _play(Channel ch) async {
+  Future<void> _markRecent(Channel ch) async {
     _recents.remove(ch.id);
     _recents.insert(0, ch.id);
     if (_recents.length > RecentsStore.maxItems) {
       _recents = _recents.sublist(0, RecentsStore.maxItems);
     }
     await RecentsStore.save(widget.accountId, _recents);
+  }
+
+  Future<void> _play(Channel ch, List<Channel> list) async {
+    await _markRecent(ch);
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PlayerPage(title: ch.name, url: ch.url),
+        builder: (_) => PlayerPage(
+          channels: list,
+          startIndex: list.indexOf(ch),
+          onChannelChanged: _markRecent,
+        ),
       ),
     );
     if (mounted) setState(() {});
@@ -161,7 +169,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                               icon: Icon(isFav ? Icons.star : Icons.star_border),
                               onPressed: () => _toggleFav(ch),
                             ),
-                            onTap: () => _play(ch),
+                            onTap: () => _play(ch, visible),
                           );
                         },
                       ),
