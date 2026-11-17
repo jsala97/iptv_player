@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'xtream_api.dart';
+import 'iptv_source.dart';
 import 'player_page.dart';
 
 class ChannelsPage extends StatefulWidget {
-  final XtreamApi api;
-  const ChannelsPage({super.key, required this.api});
+  final IptvSource source; 
+  const ChannelsPage({super.key, required this.source});
 
   @override
   State<ChannelsPage> createState() => _ChannelsPageState();
@@ -25,8 +25,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
 
   Future<void> _fetch() async {
     final results = await Future.wait([
-      widget.api.liveCategories(),
-      widget.api.liveStreams(),
+      widget.source.liveCategories(),
+      widget.source.liveStreams(),
     ]);
     _categories = results[0] as List<Category>;
     _channels = results[1] as List<Channel>;
@@ -99,7 +99,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                                 MaterialPageRoute(
                                     builder: (_) => PlayerPage(
                                         title: ch.name,
-                                        url: widget.api.streamUrl(ch.id),
+                                        url: ch.url,
                                     ),
                                 ),
                             ),
