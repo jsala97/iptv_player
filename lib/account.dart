@@ -12,6 +12,7 @@ class Account {
   final List<String> servers;
   final String user;
   final String pass;
+  final String? lastServer;
 
   Account({
     required this.id,
@@ -20,7 +21,23 @@ class Account {
     required this.servers,
     required this.user,
     required this.pass,
+    this.lastServer,
   });
+
+  String get currentServer =>
+      (lastServer != null && servers.contains(lastServer))
+          ? lastServer!
+          : servers.first;
+
+  Account copyWith({String? lastServer}) => Account(
+        id: id,
+        name: name,
+        type: type,
+        servers: servers,
+        user: user,
+        pass: pass,
+        lastServer: lastServer ?? this.lastServer,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -29,6 +46,7 @@ class Account {
         'servers': servers,
         'user': user,
         'pass': pass,
+        'lastServer': lastServer,
       };
 
   factory Account.fromJson(Map<String, dynamic> j) => Account(
@@ -40,6 +58,7 @@ class Account {
             : [j['server'] as String],
         user: j['user'],
         pass: j['pass'],
+        lastServer: j['lastServer'] as String?,
       );
 
   IptvSource createSource(String server) {

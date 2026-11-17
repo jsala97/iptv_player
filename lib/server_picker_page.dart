@@ -81,7 +81,9 @@ class _ServerPickerPageState extends State<ServerPickerPage> {
               leading: Icon(s == best ? Icons.star : Icons.dns),
               title: Text(s),
               subtitle: Text(_subtitle(s)),
-              trailing: s == best ? const Text('Mejor') : null,
+              trailing: s == widget.account.currentServer
+                  ? const Text('En uso')
+                  : null,
               onTap: () => Navigator.pop(context, s),
             ),
         ],

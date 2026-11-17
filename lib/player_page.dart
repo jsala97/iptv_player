@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
@@ -25,27 +26,59 @@ class _PlayerPageState extends State<PlayerPage> {
   late final VideoController controller = VideoController(player);
   final GlobalKey<VideoState> _videoKey = GlobalKey<VideoState>();
   late final ValueNotifier<int> _index = ValueNotifier<int>(widget.startIndex);
+  final ValueNotifier<bool> _stalled = ValueNotifier<bool>(false);
+  final List<StreamSubscription> _subs = [];
+  Timer? _watchdog;
+  bool _playedOk = false;
 
   Channel get _current => widget.channels[_index.value];
 
   @override
   void initState() {
     super.initState();
-    player.open(Media(_current.url));
+    _subs.add(player.stream.position.listen((p) {
+      if (p > Duration.zero) {
+        _playedOk = true;
+        _watchdog?.cancel();
+        if (_stalled.value) _stalled.value = false;
+      }
+    }));
+    _subs.add(player.stream.error.listen((_) => _markStalled()));
+    _openChannel();
   }
 
   @override
   void dispose() {
+    _watchdog?.cancel();
+    for (final s in _subs) {
+      s.cancel();
+    }
     player.dispose();
     _index.dispose();
+    _stalled.dispose();
     super.dispose();
+  }
+
+  void _markStalled() {
+    if (_playedOk || !mounted) return;
+    _watchdog?.cancel();
+    _stalled.value = true;
+    player.stop();
+  }
+
+  void _openChannel() {
+    _playedOk = false;
+    _stalled.value = false;
+    _watchdog?.cancel();
+    player.open(Media(_current.url));
+    _watchdog = Timer(const Duration(seconds: 15), _markStalled);
   }
 
   void _changeChannel(int delta) {
     final n = widget.channels.length;
     if (n < 2) return;
     _index.value = (_index.value + delta) % n;
-    player.open(Media(_current.url));
+    _openChannel();
     widget.onChannelChanged?.call(_current);
   }
 
@@ -75,6 +108,45 @@ class _PlayerPageState extends State<PlayerPage> {
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             _videoKey.currentState?.exitFullscreen(),
       };
+
+  Widget _stalledOverlay() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _stalled,
+      builder: (_, stalled, __) {
+        if (!stalled) return const SizedBox.shrink();
+        return Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 40),
+                  const SizedBox(height: 8),
+                  const Text('El canal no responde'),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton(
+                        onPressed: _openChannel,
+                        child: const Text('Reintentar'),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.tonal(
+                        onPressed: () => _changeChannel(1),
+                        child: const Text('Siguiente canal'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +188,16 @@ class _PlayerPageState extends State<PlayerPage> {
             builder: (_, i, __) => Text(widget.channels[i].name),
           ),
         ),
-        body: Video(key: _videoKey, controller: controller),
+        body: Video(
+          key: _videoKey,
+          controller: controller,
+          controls: (state) => Stack(
+            children: [
+              MaterialDesktopVideoControls(state),
+              _stalledOverlay(),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -38,30 +38,30 @@ class _AccountsPageState extends State<AccountsPage> {
     });
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {String? actionLabel, VoidCallback? onAction}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        action: actionLabel == null
+            ? null
+            : SnackBarAction(label: actionLabel, onPressed: onAction ?? () {}),
+      ),
+    );
   }
 
-  Future<void> _open(Account acc) async {
-    String? server;
-    if (acc.servers.length == 1) {
-      server = acc.servers.first;
-    } else {
-      server = await Navigator.of(context).push<String>(
-        MaterialPageRoute(builder: (_) => ServerPickerPage(account: acc)),
-      );
-    }
-    if (server == null) return;
-    await _connect(acc, server);
-  }
-
-  Future<void> _connect(Account acc, String server) async {
+  Future<void> _connect(Account acc) async {
+    final server = acc.currentServer;
     setState(() => _connecting = true);
     try {
       final source = acc.createSource(server);
-      if (!await source.login()) {
-        _snack('Usuario o contraseña incorrectos');
+      final ok = await source.login().timeout(const Duration(seconds: 12));
+      if (!ok) {
+        _snack(
+          'Usuario o contraseña incorrectos',
+          actionLabel: 'Editar cuenta',
+          onAction: () => _editAccount(acc),
+        );
         return;
       }
       if (!mounted) return;
@@ -71,22 +71,41 @@ class _AccountsPageState extends State<AccountsPage> {
         ),
       );
     } catch (e) {
-      _snack('Error: $e');
+      _snack(
+        'No se pudo conectar a $server',
+        actionLabel: 'Cambiar servidor',
+        onAction: () => _pickServer(acc),
+      );
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
   }
 
-  Future<void> _addAccount() async {
-    final name = TextEditingController();
-    final servers = TextEditingController();
-    final user = TextEditingController();
-    final pass = TextEditingController();
+  Future<void> _pickServer(Account acc) async {
+    final server = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => ServerPickerPage(account: acc)),
+    );
+    if (server == null) return;
+    final i = _accounts.indexWhere((a) => a.id == acc.id);
+    if (i < 0) return;
+    _accounts[i] = acc.copyWith(lastServer: server);
+    await AccountStore.save(_accounts);
+    if (!mounted) return;
+    setState(() {});
+    _snack('Servidor fijado: $server');
+  }
+
+  Future<Account?> _showAccountDialog({Account? existing}) async {
+    final name = TextEditingController(text: existing?.name ?? '');
+    final servers =
+        TextEditingController(text: existing?.servers.join('\n') ?? '');
+    final user = TextEditingController(text: existing?.user ?? '');
+    final pass = TextEditingController(text: existing?.pass ?? '');
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Nueva cuenta'),
+        title: Text(existing == null ? 'Nueva cuenta' : 'Editar cuenta'),
         content: SizedBox(
           width: 380,
           child: Column(
@@ -128,7 +147,7 @@ class _AccountsPageState extends State<AccountsPage> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true) return null;
 
     final list = servers.text
         .split('\n')
@@ -137,26 +156,60 @@ class _AccountsPageState extends State<AccountsPage> {
         .toList();
     if (list.isEmpty) {
       _snack('Añade al menos un servidor');
-      return;
+      return null;
     }
 
-    final acc = Account(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    return Account(
+      id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: name.text.trim().isEmpty ? list.first : name.text.trim(),
       type: AccountType.xtream,
       servers: list,
       user: user.text.trim(),
       pass: pass.text.trim(),
+      lastServer: existing?.lastServer,
     );
+  }
+
+  Future<void> _addAccount() async {
+    final acc = await _showAccountDialog();
+    if (acc == null) return;
     _accounts.add(acc);
     await AccountStore.save(_accounts);
-    setState(() {});
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _editAccount(Account old) async {
+    final acc = await _showAccountDialog(existing: old);
+    if (acc == null) return;
+    final i = _accounts.indexWhere((a) => a.id == old.id);
+    if (i < 0) return;
+    _accounts[i] = acc;
+    await AccountStore.save(_accounts);
+    if (mounted) setState(() {});
   }
 
   Future<void> _delete(Account acc) async {
-    _accounts.remove(acc);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Borrar cuenta'),
+        content: Text('¿Seguro que quieres borrar "${acc.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    _accounts.removeWhere((a) => a.id == acc.id);
     await AccountStore.save(_accounts);
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -189,15 +242,32 @@ class _AccountsPageState extends State<AccountsPage> {
                             leading: const Icon(Icons.dns),
                             title: Text(acc.name),
                             subtitle: Text(
-                              acc.servers.length == 1
-                                  ? acc.servers.first
-                                  : '${acc.servers.length} servidores',
+                              acc.servers.length > 1
+                                  ? '${acc.currentServer}  ·  ${acc.servers.length} servidores'
+                                  : acc.currentServer,
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _delete(acc),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (acc.servers.length > 1)
+                                  IconButton(
+                                    tooltip: 'Cambiar servidor',
+                                    icon: const Icon(Icons.swap_horiz),
+                                    onPressed: () => _pickServer(acc),
+                                  ),
+                                IconButton(
+                                  tooltip: 'Editar cuenta',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _editAccount(acc),
+                                ),
+                                IconButton(
+                                  tooltip: 'Borrar cuenta',
+                                  icon: const Icon(Icons.delete_outline),
+                                  onPressed: () => _delete(acc),
+                                ),
+                              ],
                             ),
-                            onTap: _connecting ? null : () => _open(acc),
+                            onTap: _connecting ? null : () => _connect(acc),
                           ),
                         );
                       },
