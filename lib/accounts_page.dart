@@ -50,12 +50,14 @@ class _AccountsPageState extends State<AccountsPage> {
     );
   }
 
-  Future<void> _connect(Account acc) async {
+    Future<void> _connect(Account acc) async {
     final server = acc.currentServer;
     setState(() => _connecting = true);
     try {
       final source = acc.createSource(server);
-      final ok = await source.login().timeout(const Duration(seconds: 12));
+      final ok = await source.login().timeout(
+            Duration(seconds: acc.type == AccountType.m3u ? 60 : 12),
+          );
       if (!ok) {
         _snack(
           'Usuario o contraseña incorrectos',
@@ -72,7 +74,7 @@ class _AccountsPageState extends State<AccountsPage> {
       );
     } catch (e) {
       _snack(
-        'No se pudo conectar a $server',
+        'No se pudo conectar a ${acc.label(server)}',
         actionLabel: 'Cambiar servidor',
         onAction: () => _pickServer(acc),
       );
@@ -101,71 +103,107 @@ class _AccountsPageState extends State<AccountsPage> {
         TextEditingController(text: existing?.servers.join('\n') ?? '');
     final user = TextEditingController(text: existing?.user ?? '');
     final pass = TextEditingController(text: existing?.pass ?? '');
+    var type = existing?.type ?? AccountType.xtream;
 
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(existing == null ? 'Nueva cuenta' : 'Editar cuenta'),
-        content: SizedBox(
-          width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Nombre (ej: Casa)'),
-              ),
-              TextField(
-                controller: servers,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Servidores (uno por línea)',
-                  hintText: 'servidor1.com:8080\nservidor2.com:8080',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(existing == null ? 'Nueva cuenta' : 'Editar cuenta'),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (existing == null) ...[
+                  SegmentedButton<AccountType>(
+                    segments: const [
+                      ButtonSegment(
+                        value: AccountType.xtream,
+                        label: Text('Xtream'),
+                      ),
+                      ButtonSegment(
+                        value: AccountType.m3u,
+                        label: Text('Lista M3U'),
+                      ),
+                    ],
+                    selected: {type},
+                    onSelectionChanged: (s) => setLocal(() => type = s.first),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  controller: name,
+                  decoration:
+                      const InputDecoration(labelText: 'Nombre (ej: Casa)'),
                 ),
-              ),
-              TextField(
-                controller: user,
-                decoration: const InputDecoration(labelText: 'Usuario'),
-              ),
-              TextField(
-                controller: pass,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
-              ),
-            ],
+                if (type == AccountType.xtream) ...[
+                  TextField(
+                    controller: servers,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Servidores (uno por línea)',
+                      hintText: 'servidor1.com:8080\nservidor2.com:8080',
+                    ),
+                  ),
+                  TextField(
+                    controller: user,
+                    decoration: const InputDecoration(labelText: 'Usuario'),
+                  ),
+                  TextField(
+                    controller: pass,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Contraseña'),
+                  ),
+                ] else
+                  TextField(
+                    controller: servers,
+                    minLines: 1,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'URL de la lista M3U',
+                    ),
+                  ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
     if (ok != true) return null;
 
-    final list = servers.text
-        .split('\n')
-        .map(_normalize)
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final list = type == AccountType.m3u
+        ? [_normalize(servers.text)].where((s) => s.isNotEmpty).toList()
+        : servers.text
+            .split('\n')
+            .map(_normalize)
+            .where((s) => s.isNotEmpty)
+            .toList();
     if (list.isEmpty) {
-      _snack('Añade al menos un servidor');
+      _snack('Añade al menos un servidor o una URL');
       return null;
     }
 
+    final isM3u = type == AccountType.m3u;
     return Account(
       id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name.text.trim().isEmpty ? list.first : name.text.trim(),
-      type: AccountType.xtream,
+      name: name.text.trim().isNotEmpty
+          ? name.text.trim()
+          : (isM3u ? 'Lista M3U' : list.first),
+      type: type,
       servers: list,
-      user: user.text.trim(),
-      pass: pass.text.trim(),
+      user: isM3u ? '' : user.text.trim(),
+      pass: isM3u ? '' : pass.text.trim(),
       lastServer: existing?.lastServer,
     );
   }
@@ -239,12 +277,12 @@ class _AccountsPageState extends State<AccountsPage> {
                             vertical: 6,
                           ),
                           child: ListTile(
-                            leading: const Icon(Icons.dns),
+                            leading: Icon(acc.type == AccountType.m3u ? Icons.link : Icons.dns),
                             title: Text(acc.name),
                             subtitle: Text(
                               acc.servers.length > 1
-                                  ? '${acc.currentServer}  ·  ${acc.servers.length} servidores'
-                                  : acc.currentServer,
+                                  ? '${acc.label(acc.currentServer)}  ·  ${acc.servers.length} servidores'
+                                  : acc.label(acc.currentServer),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,

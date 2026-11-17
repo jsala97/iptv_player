@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'iptv_source.dart';
 import 'xtream_api.dart';
+import 'm3u_source.dart';
 
-enum AccountType { xtream }
+enum AccountType { xtream, m3u }
 
 class Account {
   final String id;
@@ -61,9 +62,14 @@ class Account {
         lastServer: j['lastServer'] as String?,
       );
 
+  String label(String server) => type == AccountType.m3u
+    ? (Uri.tryParse(server)?.host ?? 'Lista M3U')
+    : server;
+
   IptvSource createSource(String server) {
     return switch (type) {
       AccountType.xtream => XtreamApi(server, user, pass),
+      AccountType.m3u => M3uSource(server),
     };
   }
 }
