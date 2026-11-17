@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'account.dart';
 import 'channels_page.dart';
 import 'server_picker_page.dart';
+import 'speed_test_page.dart';
 
 String _normalize(String s) {
   s = s.trim();
@@ -253,7 +254,19 @@ class _AccountsPageState extends State<AccountsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mis cuentas')),
+      appBar: AppBar(
+        title: const Text('Mis cuentas'),
+        actions: [
+          IconButton(
+            tooltip: 'Test de mi conexión',
+            icon: const Icon(Icons.speed),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SpeedTestPage()),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addAccount,
         icon: const Icon(Icons.add),
