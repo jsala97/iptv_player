@@ -47,4 +47,14 @@ class XtreamApi implements IptvSource {
       );
     }).toList();
   }
+  Future<String?> sampleStreamId() async {
+    final cats = await _get({'action': 'get_live_categories'}) as List;
+    if (cats.isEmpty) return null;
+    final streams = await _get({
+      'action': 'get_live_streams',
+      'category_id': '${cats.first['category_id']}',
+    }) as List;
+    if (streams.isEmpty) return null;
+    return '${streams.first['stream_id']}';
+  }
 }

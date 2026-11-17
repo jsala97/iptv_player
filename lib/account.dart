@@ -9,7 +9,7 @@ class Account {
   final String id;
   final String name;
   final AccountType type;
-  final String server;
+  final List<String> servers;
   final String user;
   final String pass;
 
@@ -17,7 +17,7 @@ class Account {
     required this.id,
     required this.name,
     required this.type,
-    required this.server,
+    required this.servers,
     required this.user,
     required this.pass,
   });
@@ -26,7 +26,7 @@ class Account {
         'id': id,
         'name': name,
         'type': type.name,
-        'server': server,
+        'servers': servers,
         'user': user,
         'pass': pass,
       };
@@ -35,12 +35,14 @@ class Account {
         id: j['id'],
         name: j['name'],
         type: AccountType.values.byName(j['type']),
-        server: j['server'],
+        servers: j['servers'] != null
+            ? List<String>.from(j['servers'])
+            : [j['server'] as String],
         user: j['user'],
         pass: j['pass'],
       );
 
-  IptvSource createSource() {
+  IptvSource createSource(String server) {
     return switch (type) {
       AccountType.xtream => XtreamApi(server, user, pass),
     };

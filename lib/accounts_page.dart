@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'account.dart';
 import 'channels_page.dart';
+import 'server_picker_page.dart';
+
+String _normalize(String s) {
+  s = s.trim();
+  if (s.isEmpty) return '';
+  if (!s.startsWith('http')) s = 'http://$s';
+  if (s.endsWith('/')) s = s.substring(0, s.length - 1);
+  return s;
+}
 
 class AccountsPage extends StatefulWidget {
   const AccountsPage({super.key});
@@ -34,10 +43,23 @@ class _AccountsPageState extends State<AccountsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _connect(Account acc) async {
+  Future<void> _open(Account acc) async {
+    String? server;
+    if (acc.servers.length == 1) {
+      server = acc.servers.first;
+    } else {
+      server = await Navigator.of(context).push<String>(
+        MaterialPageRoute(builder: (_) => ServerPickerPage(account: acc)),
+      );
+    }
+    if (server == null) return;
+    await _connect(acc, server);
+  }
+
+  Future<void> _connect(Account acc, String server) async {
     setState(() => _connecting = true);
     try {
-      final source = acc.createSource();
+      final source = acc.createSource(server);
       if (!await source.login()) {
         _snack('Usuario o contraseña incorrectos');
         return;
@@ -45,7 +67,7 @@ class _AccountsPageState extends State<AccountsPage> {
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-            builder: (_) => ChannelsPage(source: source, accountId: acc.id),
+          builder: (_) => ChannelsPage(source: source, accountId: acc.id),
         ),
       );
     } catch (e) {
@@ -57,7 +79,7 @@ class _AccountsPageState extends State<AccountsPage> {
 
   Future<void> _addAccount() async {
     final name = TextEditingController();
-    final server = TextEditingController();
+    final servers = TextEditingController();
     final user = TextEditingController();
     final pass = TextEditingController();
 
@@ -66,7 +88,7 @@ class _AccountsPageState extends State<AccountsPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Nueva cuenta'),
         content: SizedBox(
-          width: 360,
+          width: 380,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -75,9 +97,11 @@ class _AccountsPageState extends State<AccountsPage> {
                 decoration: const InputDecoration(labelText: 'Nombre (ej: Casa)'),
               ),
               TextField(
-                controller: server,
+                controller: servers,
+                maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Servidor (ej: servidor.com:8080)',
+                  labelText: 'Servidores (uno por línea)',
+                  hintText: 'servidor1.com:8080\nservidor2.com:8080',
                 ),
               ),
               TextField(
@@ -106,15 +130,21 @@ class _AccountsPageState extends State<AccountsPage> {
     );
     if (ok != true) return;
 
-    var base = server.text.trim();
-    if (!base.startsWith('http')) base = 'http://$base';
-    if (base.endsWith('/')) base = base.substring(0, base.length - 1);
+    final list = servers.text
+        .split('\n')
+        .map(_normalize)
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (list.isEmpty) {
+      _snack('Añade al menos un servidor');
+      return;
+    }
 
     final acc = Account(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name.text.trim().isEmpty ? base : name.text.trim(),
+      name: name.text.trim().isEmpty ? list.first : name.text.trim(),
       type: AccountType.xtream,
-      server: base,
+      servers: list,
       user: user.text.trim(),
       pass: pass.text.trim(),
     );
@@ -141,7 +171,9 @@ class _AccountsPageState extends State<AccountsPage> {
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
           : _accounts.isEmpty
-              ? const Center(child: Text('Aún no tienes cuentas. Pulsa "Añadir cuenta".'))
+              ? const Center(
+                  child: Text('Aún no tienes cuentas. Pulsa "Añadir cuenta".'),
+                )
               : Stack(
                   children: [
                     ListView.builder(
@@ -149,16 +181,23 @@ class _AccountsPageState extends State<AccountsPage> {
                       itemBuilder: (context, i) {
                         final acc = _accounts[i];
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
                           child: ListTile(
                             leading: const Icon(Icons.dns),
                             title: Text(acc.name),
-                            subtitle: Text(acc.server),
+                            subtitle: Text(
+                              acc.servers.length == 1
+                                  ? acc.servers.first
+                                  : '${acc.servers.length} servidores',
+                            ),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete_outline),
                               onPressed: () => _delete(acc),
                             ),
-                            onTap: _connecting ? null : () => _connect(acc),
+                            onTap: _connecting ? null : () => _open(acc),
                           ),
                         );
                       },
