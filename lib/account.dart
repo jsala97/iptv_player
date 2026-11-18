@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'iptv_source.dart';
 import 'm3u_source.dart';
 import 'xtream_api.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 enum AccountType { xtream, m3u }
 
@@ -90,23 +91,47 @@ class Account {
 }
 
 class AccountStore {
-  static const _key = 'accounts';
+  static const _idsKey = 'account_ids';
+  static const _legacyKey = 'accounts';
+  static const _secure = FlutterSecureStorage();
 
   static Future<List<Account>> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null) return [];
-    final list = jsonDecode(raw) as List;
-    return list
-        .map((e) => Account.fromJson(e as Map<String, dynamic>))
-        .toList();
+
+    // Migración desde la versión anterior (texto plano).
+    final legacy = prefs.getString(_legacyKey);
+    if (legacy != null) {
+      final old = (jsonDecode(legacy) as List)
+          .map((e) => Account.fromJson(e as Map<String, dynamic>))
+          .toList();
+      try {
+        await save(old);
+        await prefs.remove(_legacyKey);
+      } catch (_) {
+        return old;
+      }
+    }
+
+    final out = <Account>[];
+    for (final id in prefs.getStringList(_idsKey) ?? <String>[]) {
+      final raw = await _secure.read(key: 'acc_$id');
+      if (raw != null) {
+        out.add(Account.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+      }
+    }
+    return out;
   }
 
   static Future<void> save(List<Account> accounts) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _key,
-      jsonEncode(accounts.map((a) => a.toJson()).toList()),
-    );
+    final oldIds = prefs.getStringList(_idsKey) ?? <String>[];
+    final newIds = accounts.map((a) => a.id).toList();
+    for (final a in accounts) {
+      await _secure.write(key: 'acc_${a.id}', value: jsonEncode(a.toJson()));
+    }
+    for (final id in oldIds.where((id) => !newIds.contains(id))) {
+      await _secure.delete(key: 'acc_$id');
+    }
+    await prefs.setStringList(_idsKey, newIds);
   }
 }

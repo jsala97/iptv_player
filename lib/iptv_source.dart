@@ -60,6 +60,7 @@ abstract class IptvSource {
   Future<List<Category>> seriesCategories();
   Future<List<Series>> seriesList();
   Future<List<Episode>> episodes(Series s);
+  String? restoreUrl(String path);
 }
 
 class Series {

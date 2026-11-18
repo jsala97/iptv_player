@@ -2,10 +2,17 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'iptv_source.dart';
 
+/// "http://host/movie/USER/PASS/123.mkv" -> "movie/123.mkv" (sin credenciales)
+String pathOf(String? url) {
+  final s = Uri.tryParse(url ?? '')?.pathSegments ?? const <String>[];
+  return s.length == 4 ? '${s.first}/${s.last}' : '';
+}
+
+
 class ProgressEntry {
-  final String id, name, url;
+  final String id, name, path;
   final int posMs, durMs, ts;
-  ProgressEntry(this.id, this.name, this.url, this.posMs, this.durMs, this.ts);
+  ProgressEntry(this.id, this.name, this.path, this.posMs, this.durMs, this.ts);
   double get fraction => durMs == 0 ? 0 : posMs / durMs;
 }
 
@@ -18,14 +25,24 @@ class ProgressStore {
     if (raw == null) return {};
     try {
       final m = jsonDecode(raw) as Map<String, dynamic>;
-      return m.map((k, v) {
+      var legacy = false;
+      final out = m.map((k, v) {
         final e = v as Map<String, dynamic>;
+        if (e.containsKey('u')) legacy = true;
         return MapEntry(
           k,
-          ProgressEntry(k, e['n'] as String, e['u'] as String, e['p'] as int,
-              e['d'] as int, e['t'] as int),
+          ProgressEntry(
+            k,
+            e['n'] as String,
+            (e['x'] as String?) ?? pathOf(e['u'] as String?),
+            e['p'] as int,
+            e['d'] as int,
+            e['t'] as int,
+          ),
         );
       });
+      if (legacy) await _write(acc, out);
+      return out;
     } catch (_) {
       return {};
     }
@@ -36,7 +53,7 @@ class ProgressStore {
     await prefs.setString(
       _key(acc),
       jsonEncode(m.map((k, e) => MapEntry(
-          k, {'n': e.name, 'u': e.url, 'p': e.posMs, 'd': e.durMs, 't': e.ts}))),
+          k, {'n': e.name, 'x': e.path, 'p': e.posMs, 'd': e.durMs, 't': e.ts}))),
     );
   }
 
@@ -47,7 +64,7 @@ class ProgressStore {
     if (pos.inMilliseconds >= dur.inMilliseconds * 0.95) {
       m.remove(ch.id);
     } else {
-      m[ch.id] = ProgressEntry(ch.id, ch.name, ch.url, pos.inMilliseconds,
+      m[ch.id] = ProgressEntry(ch.id, ch.name, pathOf(ch.url), pos.inMilliseconds,
           dur.inMilliseconds, DateTime.now().millisecondsSinceEpoch);
       if (m.length > 30) {
         final oldest = (m.values.toList()..sort((a, b) => a.ts.compareTo(b.ts))).first;
@@ -63,7 +80,8 @@ class ProgressStore {
   }
 
   static Future<List<ProgressEntry>> list(String acc) async =>
-      (await _load(acc)).values.toList()..sort((a, b) => b.ts.compareTo(a.ts));
+    (await _load(acc)).values.where((e) => e.path.isNotEmpty).toList()
+      ..sort((a, b) => b.ts.compareTo(a.ts));
 
   static Future<void> remove(String acc, String id) async {
     final m = await _load(acc);

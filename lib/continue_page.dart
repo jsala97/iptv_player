@@ -12,7 +12,8 @@ String _fmt(int ms) {
 
 class ContinuePage extends StatefulWidget {
   final String accountId;
-  const ContinuePage({super.key, required this.accountId});
+  final IptvSource source;
+  const ContinuePage({super.key, required this.accountId, required this.source});
 
   @override
   State<ContinuePage> createState() => _ContinuePageState();
@@ -33,9 +34,11 @@ class _ContinuePageState extends State<ContinuePage> {
   }
 
   Future<void> _resume(ProgressEntry e) async {
+    final url = widget.source.restoreUrl(e.path);
+    if (url == null) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => PlayerPage(
-        channels: [Channel(e.id, e.name, '', e.url)],
+        channels: [Channel(e.id, e.name, '', url)],
         startIndex: 0,
         accountId: widget.accountId,
       ),

@@ -19,6 +19,13 @@ class XtreamApi implements IptvSource {
   XtreamApi(this.base, this.user, this.pass);
 
   @override
+  String? restoreUrl(String path) {
+    final i = path.indexOf('/');
+    if (i < 0) return null;
+    return '$base/${path.substring(0, i)}/$user/$pass/${path.substring(i + 1)}';
+  }
+
+  @override
   bool get supportsVod => true;
 
   Future<dynamic> _get(

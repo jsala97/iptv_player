@@ -78,7 +78,7 @@ class _AccountHomePageState extends State<AccountHomePage> {
                     ? SeriesPage(source: widget.source, accountId: widget.accountId)
                     : const SizedBox.shrink(),
                 _index == 3
-                    ? ContinuePage(accountId: widget.accountId)
+                    ? ContinuePage(source: widget.source, accountId: widget.accountId)
                     : const SizedBox.shrink(),
               ],
             ),

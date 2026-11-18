@@ -60,6 +60,9 @@ class M3uSource implements IptvSource {
     }
     return _Parsed([for (final g in groups) Category(g, g)], channels);
   }
+  
+  @override
+  String? restoreUrl(String path) => null;
 
   @override
   Future<bool> login() async {

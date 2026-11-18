@@ -5,6 +5,7 @@ import 'server_picker_page.dart';
 import 'speed_test_page.dart';
 import 'account_home_page.dart';
 import 'settings_page.dart';
+import 'progress_store.dart';
 
 String _normalize(String s) {
   s = s.trim();
@@ -34,6 +35,9 @@ class _AccountsPageState extends State<AccountsPage> {
 
   Future<void> _reload() async {
     final list = await AccountStore.load();
+    for (final a in list) {
+      ProgressStore.list(a.id); // limpia entradas antiguas con credenciales
+    }
     if (!mounted) return;
     setState(() {
       _accounts = list;
