@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'iptv_source.dart';
-import 'xtream_api.dart';
 import 'm3u_source.dart';
+import 'xtream_api.dart';
 
 enum AccountType { xtream, m3u }
 
@@ -14,6 +14,7 @@ class Account {
   final String user;
   final String pass;
   final String? lastServer;
+  final String? epgUrl;
 
   Account({
     required this.id,
@@ -23,12 +24,27 @@ class Account {
     required this.user,
     required this.pass,
     this.lastServer,
+    this.epgUrl,
   });
 
   String get currentServer =>
       (lastServer != null && servers.contains(lastServer))
           ? lastServer!
           : servers.first;
+
+  String label(String server) => type == AccountType.m3u
+      ? (Uri.tryParse(server)?.host ?? 'Lista M3U')
+      : server;
+
+  /// La guía propia de la cuenta; si no hay, en Xtream se prueba la del servidor.
+  String? effectiveEpgUrl(String server) {
+    final custom = epgUrl;
+    if (custom != null && custom.isNotEmpty) return custom;
+    if (type == AccountType.xtream) {
+      return '$server/xmltv.php?username=${Uri.encodeQueryComponent(user)}&password=${Uri.encodeQueryComponent(pass)}';
+    }
+    return null;
+  }
 
   Account copyWith({String? lastServer}) => Account(
         id: id,
@@ -38,6 +54,7 @@ class Account {
         user: user,
         pass: pass,
         lastServer: lastServer ?? this.lastServer,
+        epgUrl: epgUrl,
       );
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +65,7 @@ class Account {
         'user': user,
         'pass': pass,
         'lastServer': lastServer,
+        'epgUrl': epgUrl,
       };
 
   factory Account.fromJson(Map<String, dynamic> j) => Account(
@@ -60,11 +78,8 @@ class Account {
         user: j['user'],
         pass: j['pass'],
         lastServer: j['lastServer'] as String?,
+        epgUrl: j['epgUrl'] as String?,
       );
-
-  String label(String server) => type == AccountType.m3u
-    ? (Uri.tryParse(server)?.host ?? 'Lista M3U')
-    : server;
 
   IptvSource createSource(String server) {
     return switch (type) {

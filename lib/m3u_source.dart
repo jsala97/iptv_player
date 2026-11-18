@@ -30,6 +30,7 @@ class M3uSource implements IptvSource {
     final channels = <Channel>[];
     final groups = <String>{};
     String? name;
+    String? epgId;
     var group = 'Sin grupo';
 
     for (final raw in const LineSplitter().convert(text)) {
@@ -46,12 +47,13 @@ class M3uSource implements IptvSource {
         var n = comma >= 0 ? line.substring(comma + 1).trim() : '';
         if (n.isEmpty) n = attrs['tvg-name'] ?? 'Sin nombre';
         name = n;
+        epgId = attrs['tvg-id'];
         group = (attrs['group-title'] ?? '').trim();
         if (group.isEmpty) group = 'Sin grupo';
       } else if (!line.startsWith('#')) {
         if (name != null) {
           groups.add(group);
-          channels.add(Channel(line, name, group, line));
+          channels.add(Channel(line, name, group, line, epgId: epgId));
           name = null;
         }
       }

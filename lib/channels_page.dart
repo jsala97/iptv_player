@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
+import 'epg.dart';
 import 'favorites_store.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'recents_store.dart';
 
+String _hhmm(DateTime d) {
+  final l = d.toLocal();
+  return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+}
+
 class ChannelsPage extends StatefulWidget {
   final IptvSource source;
   final String accountId;
+  final String? epgUrl;
   const ChannelsPage({
     super.key,
     required this.source,
     required this.accountId,
+    this.epgUrl,
   });
 
   @override
@@ -29,6 +37,10 @@ class _ChannelsPageState extends State<ChannelsPage> {
   String? _selectedCat;
   String _search = '';
 
+  Epg? _epg;
+  bool _epgLoading = false;
+  String? _epgError;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +56,36 @@ class _ChannelsPageState extends State<ChannelsPage> {
     _channels = results[1] as List<Channel>;
     _favs = await FavoritesStore.load(widget.accountId);
     _recents = await RecentsStore.load(widget.accountId);
+    _startEpg();
+  }
+
+  void _startEpg({bool force = false}) {
+    final url = widget.epgUrl;
+    if (url == null || url.isEmpty) return;
+    final ids = {
+      for (final c in _channels)
+        if (c.epgId != null && c.epgId!.isNotEmpty) c.epgId!,
+    };
+    if (ids.isEmpty) return;
+
+    () async {
+      if (mounted) {
+        setState(() {
+          _epgLoading = true;
+          _epgError = null;
+        });
+      }
+      try {
+        Epg? epg = force ? null : await EpgService.loadCached(widget.accountId);
+        epg ??= await EpgService.download(widget.accountId, url, ids);
+        if (!mounted) return;
+        setState(() => _epg = epg);
+      } catch (e) {
+        if (mounted) setState(() => _epgError = 'No se pudo cargar la guía');
+      } finally {
+        if (mounted) setState(() => _epgLoading = false);
+      }
+    }();
   }
 
   Future<void> _toggleFav(Channel ch) async {
@@ -84,10 +126,41 @@ class _ChannelsPageState extends State<ChannelsPage> {
     return c.categoryId == _selectedCat;
   }
 
+  Widget? _epgSubtitle(Channel ch) {
+    final epg = _epg;
+    if (epg == null) return null;
+    final now = epg.nowOn(ch.epgId);
+    if (now == null) return null;
+    final next = epg.nextOn(ch.epgId);
+    final text = '${_hhmm(now.start)} ${now.title}'
+        '${next != null ? '  ·  Luego ${_hhmm(next.start)} ${next.title}' : ''}';
+    return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Canales en directo')),
+      appBar: AppBar(
+        title: const Text('Canales en directo'),
+        actions: [
+          if (widget.epgUrl != null) ...[
+            if (_epgLoading)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            IconButton(
+              tooltip: _epgError ?? 'Actualizar guía',
+              icon: const Icon(Icons.refresh),
+              onPressed: _epgLoading ? null : () => _startEpg(force: true),
+            ),
+          ],
+        ],
+      ),
       body: FutureBuilder<void>(
         future: _load,
         builder: (context, snap) {
@@ -165,6 +238,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                           return ListTile(
                             leading: const Icon(Icons.tv),
                             title: Text(ch.name),
+                            subtitle: _epgSubtitle(ch),
                             trailing: IconButton(
                               icon: Icon(isFav ? Icons.star : Icons.star_border),
                               onPressed: () => _toggleFav(ch),

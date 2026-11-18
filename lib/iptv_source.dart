@@ -9,7 +9,8 @@ class Channel {
   final String name;
   final String categoryId;
   final String url;
-  Channel(this.id, this.name, this.categoryId, this.url);
+  final String? epgId;
+  Channel(this.id, this.name, this.categoryId, this.url, {this.epgId});
 }
 
 abstract class IptvSource {

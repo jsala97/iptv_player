@@ -70,8 +70,12 @@ class _AccountsPageState extends State<AccountsPage> {
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => ChannelsPage(source: source, accountId: acc.id),
-        ),
+          builder: (_) => ChannelsPage(
+            source: source,
+            accountId: acc.id,
+            epgUrl: acc.effectiveEpgUrl(server),
+          ),
+      ),
       );
     } catch (e) {
       _snack(
@@ -98,12 +102,13 @@ class _AccountsPageState extends State<AccountsPage> {
     _snack('Servidor fijado: $server');
   }
 
-  Future<Account?> _showAccountDialog({Account? existing}) async {
+    Future<Account?> _showAccountDialog({Account? existing}) async {
     final name = TextEditingController(text: existing?.name ?? '');
     final servers =
         TextEditingController(text: existing?.servers.join('\n') ?? '');
     final user = TextEditingController(text: existing?.user ?? '');
     final pass = TextEditingController(text: existing?.pass ?? '');
+    final epg = TextEditingController(text: existing?.epgUrl ?? '');
     var type = existing?.type ?? AccountType.xtream;
 
     final ok = await showDialog<bool>(
@@ -113,59 +118,69 @@ class _AccountsPageState extends State<AccountsPage> {
           title: Text(existing == null ? 'Nueva cuenta' : 'Editar cuenta'),
           content: SizedBox(
             width: 380,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (existing == null) ...[
-                  SegmentedButton<AccountType>(
-                    segments: const [
-                      ButtonSegment(
-                        value: AccountType.xtream,
-                        label: Text('Xtream'),
-                      ),
-                      ButtonSegment(
-                        value: AccountType.m3u,
-                        label: Text('Lista M3U'),
-                      ),
-                    ],
-                    selected: {type},
-                    onSelectionChanged: (s) => setLocal(() => type = s.first),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (existing == null) ...[
+                    SegmentedButton<AccountType>(
+                      segments: const [
+                        ButtonSegment(
+                          value: AccountType.xtream,
+                          label: Text('Xtream'),
+                        ),
+                        ButtonSegment(
+                          value: AccountType.m3u,
+                          label: Text('Lista M3U'),
+                        ),
+                      ],
+                      selected: {type},
+                      onSelectionChanged: (s) =>
+                          setLocal(() => type = s.first),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  TextField(
+                    controller: name,
+                    decoration:
+                        const InputDecoration(labelText: 'Nombre (ej: Casa)'),
                   ),
-                  const SizedBox(height: 8),
+                  if (type == AccountType.xtream) ...[
+                    TextField(
+                      controller: servers,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Servidores (uno por línea)',
+                        hintText: 'servidor1.com:8080\nservidor2.com:8080',
+                      ),
+                    ),
+                    TextField(
+                      controller: user,
+                      decoration: const InputDecoration(labelText: 'Usuario'),
+                    ),
+                    TextField(
+                      controller: pass,
+                      obscureText: true,
+                      decoration:
+                          const InputDecoration(labelText: 'Contraseña'),
+                    ),
+                  ] else
+                    TextField(
+                      controller: servers,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'URL de la lista M3U',
+                      ),
+                    ),
+                  TextField(
+                    controller: epg,
+                    decoration: const InputDecoration(
+                      labelText: 'URL de la guía EPG (opcional)',
+                    ),
+                  ),
                 ],
-                TextField(
-                  controller: name,
-                  decoration:
-                      const InputDecoration(labelText: 'Nombre (ej: Casa)'),
-                ),
-                if (type == AccountType.xtream) ...[
-                  TextField(
-                    controller: servers,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Servidores (uno por línea)',
-                      hintText: 'servidor1.com:8080\nservidor2.com:8080',
-                    ),
-                  ),
-                  TextField(
-                    controller: user,
-                    decoration: const InputDecoration(labelText: 'Usuario'),
-                  ),
-                  TextField(
-                    controller: pass,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Contraseña'),
-                  ),
-                ] else
-                  TextField(
-                    controller: servers,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'URL de la lista M3U',
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
           actions: [
@@ -196,6 +211,7 @@ class _AccountsPageState extends State<AccountsPage> {
     }
 
     final isM3u = type == AccountType.m3u;
+    final epgText = epg.text.trim();
     return Account(
       id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: name.text.trim().isNotEmpty
@@ -206,6 +222,7 @@ class _AccountsPageState extends State<AccountsPage> {
       user: isM3u ? '' : user.text.trim(),
       pass: isM3u ? '' : pass.text.trim(),
       lastServer: existing?.lastServer,
+      epgUrl: epgText.isEmpty ? null : epgText,
     );
   }
 
