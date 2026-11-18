@@ -4,7 +4,9 @@ import 'player_page.dart';
 
 class SeriesPage extends StatefulWidget {
   final IptvSource source;
-  const SeriesPage({super.key, required this.source});
+  final String accountId;
+  const SeriesPage({super.key, required this.source,required this.accountId});
+  
 
   @override
   State<SeriesPage> createState() => _SeriesPageState();

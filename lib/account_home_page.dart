@@ -3,6 +3,7 @@ import 'channels_page.dart';
 import 'iptv_source.dart';
 import 'movies_page.dart';
 import 'series_page.dart';
+import 'continue_page.dart';
 
 class AccountHomePage extends StatefulWidget {
   final IptvSource source;
@@ -58,6 +59,10 @@ class _AccountHomePageState extends State<AccountHomePage> {
                 icon: Icon(Icons.tv),
                 label: Text('Series'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.history),
+                label: Text('Continuar'),
+              ),
             ],
           ),
           const VerticalDivider(width: 1),
@@ -67,10 +72,13 @@ class _AccountHomePageState extends State<AccountHomePage> {
               children: [
                 channels,
                 _moviesOpened
-                    ? MoviesPage(source: widget.source)
+                    ? MoviesPage(source: widget.source, accountId: widget.accountId)
                     : const SizedBox.shrink(),
                 _seriesOpened
-                    ? SeriesPage(source: widget.source)
+                    ? SeriesPage(source: widget.source, accountId: widget.accountId)
+                    : const SizedBox.shrink(),
+                _index == 3
+                    ? ContinuePage(accountId: widget.accountId)
                     : const SizedBox.shrink(),
               ],
             ),

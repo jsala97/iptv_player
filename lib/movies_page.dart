@@ -4,7 +4,9 @@ import 'player_page.dart';
 
 class MoviesPage extends StatefulWidget {
   final IptvSource source;
-  const MoviesPage({super.key, required this.source});
+  final String accountId;
+
+  const MoviesPage({super.key, required this.source, required this.accountId});
 
   @override
   State<MoviesPage> createState() => _MoviesPageState();
@@ -45,8 +47,9 @@ class _MoviesPageState extends State<MoviesPage> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => PlayerPage(
-          channels: [Channel(m.id, m.name, m.categoryId, m.url)],
+          channels: [Channel('m${m.id}', m.name, m.categoryId, m.url)],
           startIndex: 0,
+          accountId: widget.accountId,
         ),
       ),
     );

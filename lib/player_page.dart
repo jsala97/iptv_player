@@ -5,6 +5,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'epg.dart';
 import 'iptv_source.dart';
+import 'progress_store.dart';
 
 String _hhmm(DateTime d) {
   final l = d.toLocal();
@@ -36,6 +37,7 @@ class PlayerPage extends StatefulWidget {
   final int startIndex;
   final void Function(Channel)? onChannelChanged;
   final Epg? Function()? epgProvider;
+  final String? accountId;
 
   const PlayerPage({
     super.key,
@@ -43,6 +45,7 @@ class PlayerPage extends StatefulWidget {
     required this.startIndex,
     this.onChannelChanged,
     this.epgProvider,
+    this.accountId,
   });
 
   @override
@@ -57,6 +60,7 @@ class _PlayerPageState extends State<PlayerPage> {
   final ValueNotifier<bool> _stalled = ValueNotifier<bool>(false);
   final List<StreamSubscription> _subs = [];
   Timer? _watchdog;
+  Timer? _progressTimer;
   bool _playedOk = false;
 
   Channel get _current => widget.channels[_index.value];
@@ -72,11 +76,15 @@ class _PlayerPageState extends State<PlayerPage> {
       }
     }));
     _subs.add(player.stream.error.listen((_) => _markStalled()));
+    _progressTimer =
+      Timer.periodic(const Duration(seconds: 10), (_) => _saveProgress());
     _openChannel();
   }
 
   @override
   void dispose() {
+    _saveProgress();
+    _progressTimer?.cancel();
     _watchdog?.cancel();
     for (final s in _subs) {
       s.cancel();
@@ -94,15 +102,35 @@ class _PlayerPageState extends State<PlayerPage> {
     player.stop();
   }
 
-  void _openChannel() {
+  Future<void> _openChannel() async {
     _playedOk = false;
     _stalled.value = false;
     _watchdog?.cancel();
+    final acc = widget.accountId;
+    final saved =
+        acc == null ? null : await ProgressStore.positionFor(acc, _current.id);
+    if (!mounted) return;
     player.open(Media(_current.url));
+    if (saved != null) {
+      player.stream.duration
+          .firstWhere((d) => d > Duration.zero)
+          .timeout(const Duration(seconds: 20))
+          .then((_) => player.seek(saved))
+          .catchError((_) {});
+    }
     _watchdog = Timer(const Duration(seconds: 15), _markStalled);
   }
 
+  void _saveProgress() {
+    final acc = widget.accountId;
+    if (acc == null || !_playedOk) return;
+    final dur = player.state.duration;
+    if (dur <= Duration.zero) return;
+    ProgressStore.save(acc, _current, player.state.position, dur);
+  }
+
   void _changeChannel(int delta) {
+    _saveProgress();
     final n = widget.channels.length;
     if (n < 2) return;
     _index.value = (_index.value + delta) % n;
@@ -338,6 +366,7 @@ class _PlayerPageState extends State<PlayerPage> {
             onPressed: () => _changeChannel(1),
           ),
         const MaterialDesktopVolumeButton(),
+        if (widget.accountId != null) const MaterialDesktopPositionIndicator(),
         const SizedBox(width: 12),
         Expanded(
           child: ValueListenableBuilder<int>(
