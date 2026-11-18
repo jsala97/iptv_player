@@ -3,6 +3,7 @@ import 'account.dart';
 import 'channels_page.dart';
 import 'server_picker_page.dart';
 import 'speed_test_page.dart';
+import 'account_home_page.dart';
 
 String _normalize(String s) {
   s = s.trim();
@@ -70,7 +71,7 @@ class _AccountsPageState extends State<AccountsPage> {
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => ChannelsPage(
+          builder: (_) => AccountHomePage(
             source: source,
             accountId: acc.id,
             epgUrl: acc.effectiveEpgUrl(server),

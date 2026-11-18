@@ -76,4 +76,16 @@ class M3uSource implements IptvSource {
 
   @override
   Future<List<Channel>> liveStreams() async => (await _load()).channels;
+
+  @override
+  bool get supportsVod => false;
+
+  @override
+  Future<List<Category>> vodCategories() async => [];
+
+  @override
+  Future<List<Movie>> movies() async => [];
+
+  @override
+  Future<MovieInfo?> movieInfo(Movie m) async => null;
 }
