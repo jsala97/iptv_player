@@ -4,6 +4,7 @@ import 'channels_page.dart';
 import 'server_picker_page.dart';
 import 'speed_test_page.dart';
 import 'account_home_page.dart';
+import 'settings_page.dart';
 
 String _normalize(String s) {
   s = s.trim();
@@ -276,12 +277,20 @@ class _AccountsPageState extends State<AccountsPage> {
         title: const Text('Mis cuentas'),
         actions: [
           IconButton(
+            tooltip: 'Ajustes',
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
+          ),
+          IconButton(
             tooltip: 'Test de mi conexión',
             icon: const Icon(Icons.speed),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SpeedTestPage()),
             ),
           ),
+
           const SizedBox(width: 8),
         ],
       ),

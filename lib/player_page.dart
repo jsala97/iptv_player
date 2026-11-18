@@ -6,6 +6,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'epg.dart';
 import 'iptv_source.dart';
 import 'progress_store.dart';
+import 'settings.dart';
 
 String _hhmm(DateTime d) {
   final l = d.toLocal();
@@ -62,6 +63,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Timer? _watchdog;
   Timer? _progressTimer;
   bool _playedOk = false;
+  bool _tracksApplied = false;
 
   Channel get _current => widget.channels[_index.value];
 
@@ -76,9 +78,11 @@ class _PlayerPageState extends State<PlayerPage> {
       }
     }));
     _subs.add(player.stream.error.listen((_) => _markStalled()));
+    _subs.add(player.stream.tracks.listen(_applyTrackPrefs));
     _progressTimer =
       Timer.periodic(const Duration(seconds: 10), (_) => _saveProgress());
     _openChannel();
+
   }
 
   @override
@@ -103,6 +107,7 @@ class _PlayerPageState extends State<PlayerPage> {
   }
 
   Future<void> _openChannel() async {
+    _tracksApplied = false;
     _playedOk = false;
     _stalled.value = false;
     _watchdog?.cancel();
@@ -218,6 +223,53 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
+  String get _prefKey =>
+      _current.id.startsWith('e') ? 's${_current.categoryId}' : _current.id;
+
+  Future<void> _applyTrackPrefs(Tracks t) async {
+    if (widget.accountId == null || _tracksApplied) return;
+    final audio =
+        t.audio.where((a) => a.id != 'auto' && a.id != 'no').toList();
+    if (audio.isEmpty) return;
+    _tracksApplied = true;
+    final subs =
+        t.subtitle.where((s) => s.id != 'auto' && s.id != 'no').toList();
+    final saved = await AppSettings.titlePref(_prefKey);
+
+    AudioTrack? a;
+    final sa = saved['a'];
+    if (sa != null) a = audio.where((x) => x.id == sa).firstOrNull;
+    if (a == null) {
+      final pref = await AppSettings.audioLang();
+      if (pref != 'auto') {
+        a = audio
+            .where((x) => matchesLang(pref, x.language, x.title))
+            .firstOrNull;
+      }
+    }
+    if (a != null) await player.setAudioTrack(a);
+
+    final ss = saved['s'];
+    if (ss == 'no') {
+      await player.setSubtitleTrack(SubtitleTrack.no());
+      return;
+    }
+    SubtitleTrack? s;
+    if (ss != null) {
+      s = subs.where((x) => x.id == ss).firstOrNull;
+    } else {
+      final pref = await AppSettings.subLang();
+      if (pref == 'off') {
+        await player.setSubtitleTrack(SubtitleTrack.no());
+        return;
+      }
+      s = subs
+          .where((x) => matchesLang(pref, x.language, x.title))
+          .firstOrNull;
+    }
+    if (s != null) await player.setSubtitleTrack(s);
+  }
+
   void _showTracks() {
     final t = player.state.tracks;
     final audio = t.audio.where((a) => a.id != 'auto' && a.id != 'no').toList();
@@ -248,6 +300,9 @@ class _PlayerPageState extends State<PlayerPage> {
                         selA == audio[i].id ? const Icon(Icons.check) : null,
                     onTap: () {
                       player.setAudioTrack(audio[i]);
+                      if (widget.accountId != null) {
+                        AppSettings.setTitlePref(_prefKey, audio: audio[i].id);
+                      }
                       setS(() => selA = audio[i].id);
                     },
                   ),
@@ -264,6 +319,9 @@ class _PlayerPageState extends State<PlayerPage> {
                         selS == subs[i].id ? const Icon(Icons.check) : null,
                     onTap: () {
                       player.setSubtitleTrack(subs[i]);
+                      if (widget.accountId != null) {
+                        AppSettings.setTitlePref(_prefKey, sub: subs[i].id);
+                      }
                       setS(() => selS = subs[i].id);
                     },
                   ),
