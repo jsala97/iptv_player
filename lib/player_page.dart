@@ -326,15 +326,17 @@ class _PlayerPageState extends State<PlayerPage> {
     final theme = MaterialDesktopVideoControlsThemeData(
       keyboardShortcuts: _shortcuts,
       bottomButtonBar: [
-        MaterialDesktopCustomButton(
-          icon: const Icon(Icons.skip_previous),
-          onPressed: () => _changeChannel(-1),
-        ),
+        if (widget.channels.length > 1)
+          MaterialDesktopCustomButton(
+            icon: const Icon(Icons.skip_previous),
+            onPressed: () => _changeChannel(-1),
+          ),
         const MaterialDesktopPlayOrPauseButton(),
-        MaterialDesktopCustomButton(
-          icon: const Icon(Icons.skip_next),
-          onPressed: () => _changeChannel(1),
-        ),
+        if (widget.channels.length > 1)
+          MaterialDesktopCustomButton(
+            icon: const Icon(Icons.skip_next),
+            onPressed: () => _changeChannel(1),
+          ),
         const MaterialDesktopVolumeButton(),
         const SizedBox(width: 12),
         Expanded(
