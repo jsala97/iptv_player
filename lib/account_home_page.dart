@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'channels_page.dart';
 import 'iptv_source.dart';
 import 'movies_page.dart';
+import 'series_page.dart';
 
 class AccountHomePage extends StatefulWidget {
   final IptvSource source;
@@ -22,6 +23,7 @@ class AccountHomePage extends StatefulWidget {
 class _AccountHomePageState extends State<AccountHomePage> {
   int _index = 0;
   bool _moviesOpened = false;
+  bool _seriesOpened = false;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +43,7 @@ class _AccountHomePageState extends State<AccountHomePage> {
             onDestinationSelected: (i) => setState(() {
               _index = i;
               if (i == 1) _moviesOpened = true;
+              if (i == 2) _seriesOpened = true;
             }),
             destinations: const [
               NavigationRailDestination(
@@ -50,6 +53,10 @@ class _AccountHomePageState extends State<AccountHomePage> {
               NavigationRailDestination(
                 icon: Icon(Icons.movie),
                 label: Text('Películas'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.tv),
+                label: Text('Series'),
               ),
             ],
           ),
@@ -61,6 +68,9 @@ class _AccountHomePageState extends State<AccountHomePage> {
                 channels,
                 _moviesOpened
                     ? MoviesPage(source: widget.source)
+                    : const SizedBox.shrink(),
+                _seriesOpened
+                    ? SeriesPage(source: widget.source)
                     : const SizedBox.shrink(),
               ],
             ),

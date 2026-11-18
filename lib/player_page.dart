@@ -11,6 +11,26 @@ String _hhmm(DateTime d) {
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
+const _langs = {
+  'spa': 'Español', 'es': 'Español', 'eng': 'Inglés', 'en': 'Inglés',
+  'fre': 'Francés', 'fra': 'Francés', 'fr': 'Francés', 'ger': 'Alemán',
+  'deu': 'Alemán', 'de': 'Alemán', 'ita': 'Italiano', 'it': 'Italiano',
+  'por': 'Portugués', 'pt': 'Portugués', 'cat': 'Catalán', 'ca': 'Catalán',
+  'jpn': 'Japonés', 'ja': 'Japonés', 'kor': 'Coreano', 'ko': 'Coreano',
+  'rus': 'Ruso', 'ru': 'Ruso', 'ara': 'Árabe', 'ar': 'Árabe',
+};
+
+String _trackLabel(String id, String? title, String? lang, int i) {
+  if (id == 'no') return 'Desactivados';
+  final l = lang == null ? null : (_langs[lang.toLowerCase()] ?? lang);
+  final text = [l, title]
+      .whereType<String>()
+      .where((s) => s.isNotEmpty)
+      .toSet()
+      .join(' · ');
+  return text.isEmpty ? 'Pista ${i + 1}' : text;
+}
+
 class PlayerPage extends StatefulWidget {
   final List<Channel> channels;
   final int startIndex;
@@ -170,6 +190,69 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
+  void _showTracks() {
+    final t = player.state.tracks;
+    final audio = t.audio.where((a) => a.id != 'auto' && a.id != 'no').toList();
+    final subs = t.subtitle.where((s) => s.id != 'auto').toList();
+    var selA = player.state.track.audio.id;
+    var selS = player.state.track.subtitle.id;
+    const bold = TextStyle(fontWeight: FontWeight.bold);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text('Audio y subtítulos'),
+          content: SizedBox(
+            width: 420,
+            height: 360,
+            child: ListView(
+              children: [
+                const Text('Audio', style: bold),
+                if (audio.isEmpty)
+                  const Text('No hay pistas de audio alternativas.'),
+                for (var i = 0; i < audio.length; i++)
+                  ListTile(
+                    dense: true,
+                    title: Text(_trackLabel(
+                        audio[i].id, audio[i].title, audio[i].language, i)),
+                    trailing:
+                        selA == audio[i].id ? const Icon(Icons.check) : null,
+                    onTap: () {
+                      player.setAudioTrack(audio[i]);
+                      setS(() => selA = audio[i].id);
+                    },
+                  ),
+                const Divider(),
+                const Text('Subtítulos', style: bold),
+                if (subs.length < 2)
+                  const Text('No hay subtítulos disponibles.'),
+                for (var i = 0; i < subs.length; i++)
+                  ListTile(
+                    dense: true,
+                    title: Text(_trackLabel(
+                        subs[i].id, subs[i].title, subs[i].language, i)),
+                    trailing:
+                        selS == subs[i].id ? const Icon(Icons.check) : null,
+                    onTap: () {
+                      player.setSubtitleTrack(subs[i]);
+                      setS(() => selS = subs[i].id);
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Map<ShortcutActivator, VoidCallback> get _shortcuts => {
         const SingleActivator(LogicalKeyboardKey.space): () =>
             player.playOrPause(),
@@ -190,6 +273,7 @@ class _PlayerPageState extends State<PlayerPage> {
         const SingleActivator(LogicalKeyboardKey.pageDown): () =>
             _changeChannel(1),
         const SingleActivator(LogicalKeyboardKey.keyI): _showGuide,
+        const SingleActivator(LogicalKeyboardKey.keyS): _showTracks,
         const SingleActivator(LogicalKeyboardKey.keyF): () =>
             _videoKey.currentState?.toggleFullscreen(),
         const SingleActivator(LogicalKeyboardKey.f11): () =>
@@ -262,6 +346,10 @@ class _PlayerPageState extends State<PlayerPage> {
               style: const TextStyle(color: Colors.white),
             ),
           ),
+        ),
+        MaterialDesktopCustomButton(
+          icon: const Icon(Icons.subtitles),
+          onPressed: _showTracks,
         ),
         MaterialDesktopCustomButton(
           icon: const Icon(Icons.list_alt),

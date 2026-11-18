@@ -125,4 +125,61 @@ class XtreamApi implements IptvSource {
       duration: _str(info['duration']),
     );
   }
+
+  @override
+  Future<List<Category>> seriesCategories() async {
+    final data = await _get({'action': 'get_series_categories'});
+    if (data is! List) return [];
+    return data
+        .map((e) => Category('${e['category_id']}', '${e['category_name']}'))
+        .toList();
+  }
+
+  @override
+  Future<List<Series>> seriesList() async {
+    final data = await _get({'action': 'get_series'},
+        timeout: const Duration(seconds: 90));
+    if (data is! List) return [];
+    return data
+        .map((e) => Series(
+              id: '${e['series_id']}',
+              name: '${e['name']}',
+              categoryId: '${e['category_id']}',
+              cover: _str(e['cover']),
+              plot: _str(e['plot']),
+              rating: _str(e['rating']),
+              added: int.tryParse('${e['last_modified']}'),
+            ))
+        .toList();
+  }
+
+  @override
+  Future<List<Episode>> episodes(Series s) async {
+    final data = await _get({'action': 'get_series_info', 'series_id': s.id});
+    final eps = data is Map ? data['episodes'] : null;
+    final out = <Episode>[];
+    void add(int season, dynamic list) {
+      if (list is! List) return;
+      for (final e in list) {
+        final id = '${e['id']}';
+        final ext = _str(e['container_extension']) ?? 'mp4';
+        out.add(Episode(
+          id: id,
+          title: _str(e['title']) ?? 'Episodio ${e['episode_num']}',
+          season: season,
+          number: int.tryParse('${e['episode_num']}') ?? 0,
+          url: '$base/series/$user/$pass/$id.$ext',
+        ));
+      }
+    }
+
+    if (eps is Map) {
+      eps.forEach((k, v) => add(int.tryParse('$k') ?? 0, v));
+    } else if (eps is List) {
+      for (var i = 0; i < eps.length; i++) {
+        add(i + 1, eps[i]);
+      }
+    }
+    return out;
+  }
 }

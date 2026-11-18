@@ -88,4 +88,13 @@ class M3uSource implements IptvSource {
 
   @override
   Future<MovieInfo?> movieInfo(Movie m) async => null;
+
+  @override
+  Future<List<Category>> seriesCategories() async => [];
+
+  @override
+  Future<List<Series>> seriesList() async => [];
+
+  @override
+  Future<List<Episode>> episodes(Series s) async => [];
 }
