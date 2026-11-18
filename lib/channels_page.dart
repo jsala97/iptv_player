@@ -10,6 +10,11 @@ String _hhmm(DateTime d) {
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 
+/// Quita las direcciones del texto del error, porque llevan tu usuario y contraseña.
+String _safeError(Object e) =>
+    '$e'.replaceAll(RegExp(r'https?://\S+'), '[url]');
+
+
 class ChannelsPage extends StatefulWidget {
   final IptvSource source;
   final String accountId;
@@ -59,14 +64,24 @@ class _ChannelsPageState extends State<ChannelsPage> {
     _startEpg();
   }
 
+  String? _epgInfo;
+
   void _startEpg({bool force = false}) {
+    _epgInfo = null;
     final url = widget.epgUrl;
-    if (url == null || url.isEmpty) return;
+    if (url == null || url.isEmpty) {
+      _epgInfo =
+          'Guía: sin configurar. Edita la cuenta y pega la URL de la guía.';
+      return;
+    }
     final ids = {
       for (final c in _channels)
         if (c.epgId != null && c.epgId!.isNotEmpty) c.epgId!,
     };
-    if (ids.isEmpty) return;
+    final names = {
+      for (final c in _channels)
+        if (normalizeName(c.name).isNotEmpty) normalizeName(c.name),
+    };
 
     () async {
       if (mounted) {
@@ -77,15 +92,30 @@ class _ChannelsPageState extends State<ChannelsPage> {
       }
       try {
         Epg? epg = force ? null : await EpgService.loadCached(widget.accountId);
-        epg ??= await EpgService.download(widget.accountId, url, ids);
+        epg ??= await EpgService.download(widget.accountId, url, ids, names);
         if (!mounted) return;
         setState(() => _epg = epg);
       } catch (e) {
-        if (mounted) setState(() => _epgError = 'No se pudo cargar la guía');
+        if (mounted) setState(() => _epgError = _safeError(e));
       } finally {
         if (mounted) setState(() => _epgLoading = false);
       }
     }();
+  }
+
+  String? _epgStatus() {
+    if (_epgLoading) {
+      return 'Guía: descargando... (la primera vez puede tardar)';
+    }
+    if (_epgError != null) return 'Guía: error — $_epgError';
+    if (_epgInfo != null) return _epgInfo;
+    final epg = _epg;
+    if (epg == null) return null;
+    final matched = _channels.where((c) => epg.hasData(c)).length;
+    if (matched == 0) {
+      return 'Guía descargada, pero ningún canal coincide con su programación.';
+    }
+    return 'Guía: $matched de ${_channels.length} canales con programación';
   }
 
   Future<void> _toggleFav(Channel ch) async {
@@ -113,6 +143,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
           channels: list,
           startIndex: list.indexOf(ch),
           onChannelChanged: _markRecent,
+          epgProvider: () => _epg,
         ),
       ),
     );
@@ -129,9 +160,9 @@ class _ChannelsPageState extends State<ChannelsPage> {
   Widget? _epgSubtitle(Channel ch) {
     final epg = _epg;
     if (epg == null) return null;
-    final now = epg.nowOn(ch.epgId);
+    final now = epg.nowOn(ch);
     if (now == null) return null;
-    final next = epg.nextOn(ch.epgId);
+    final next = epg.nextOn(ch);
     final text = '${_hhmm(now.start)} ${now.title}'
         '${next != null ? '  ·  Luego ${_hhmm(next.start)} ${next.title}' : ''}';
     return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
@@ -229,6 +260,17 @@ class _ChannelsPageState extends State<ChannelsPage> {
                         onChanged: (v) => setState(() => _search = v),
                       ),
                     ),
+                    if (_epgStatus() != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _epgStatus()!,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
                     Expanded(
                       child: ListView.builder(
                         itemCount: visible.length,

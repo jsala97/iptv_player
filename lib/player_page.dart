@@ -3,18 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'epg.dart';
 import 'iptv_source.dart';
+
+String _hhmm(DateTime d) {
+  final l = d.toLocal();
+  return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+}
 
 class PlayerPage extends StatefulWidget {
   final List<Channel> channels;
   final int startIndex;
   final void Function(Channel)? onChannelChanged;
+  final Epg? Function()? epgProvider;
 
   const PlayerPage({
     super.key,
     required this.channels,
     required this.startIndex,
     this.onChannelChanged,
+    this.epgProvider,
   });
 
   @override
@@ -82,6 +90,86 @@ class _PlayerPageState extends State<PlayerPage> {
     widget.onChannelChanged?.call(_current);
   }
 
+  String _titleLine(Channel ch) {
+    final now = widget.epgProvider?.call()?.nowOn(ch);
+    if (now == null) return ch.name;
+    return '${ch.name}  ·  ${_hhmm(now.start)}–${_hhmm(now.end)} ${now.title}';
+  }
+
+  Widget _appBarTitle(Channel ch) {
+    final now = widget.epgProvider?.call()?.nowOn(ch);
+    if (now == null) return Text(ch.name);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(ch.name),
+        Text(
+          '${_hhmm(now.start)}–${_hhmm(now.end)}  ${now.title}',
+          style: const TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  void _showGuide() {
+    final ch = _current;
+    final epg = widget.epgProvider?.call();
+    final now = DateTime.now().toUtc();
+    final all = epg?.programmesFor(ch) ?? <Programme>[];
+    final list = all.where((p) => p.end.isAfter(now)).toList();
+
+    String reason;
+    if (epg == null) {
+      reason =
+          'La guía aún no está cargada, o no se ha configurado en la cuenta.';
+    } else if (all.isEmpty) {
+      reason = 'La guía no tiene programación para este canal.\n'
+          'Identificador de guía del canal: ${ch.epgId ?? '(ninguno)'}';
+    } else {
+      reason = 'No quedan programas próximos para este canal.';
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ch.name),
+        content: SizedBox(
+          width: 460,
+          height: 380,
+          child: list.isEmpty
+              ? Text(reason)
+              : ListView.builder(
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final p = list[i];
+                    return ListTile(
+                      dense: true,
+                      selected: !p.start.isAfter(now),
+                      leading: Text('${_hhmm(p.start)}\n${_hhmm(p.end)}'),
+                      title: Text(p.title),
+                      subtitle: p.desc.isEmpty
+                          ? null
+                          : Text(
+                              p.desc,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Map<ShortcutActivator, VoidCallback> get _shortcuts => {
         const SingleActivator(LogicalKeyboardKey.space): () =>
             player.playOrPause(),
@@ -101,6 +189,7 @@ class _PlayerPageState extends State<PlayerPage> {
             _changeChannel(-1),
         const SingleActivator(LogicalKeyboardKey.pageDown): () =>
             _changeChannel(1),
+        const SingleActivator(LogicalKeyboardKey.keyI): _showGuide,
         const SingleActivator(LogicalKeyboardKey.keyF): () =>
             _videoKey.currentState?.toggleFullscreen(),
         const SingleActivator(LogicalKeyboardKey.f11): () =>
@@ -168,11 +257,15 @@ class _PlayerPageState extends State<PlayerPage> {
           child: ValueListenableBuilder<int>(
             valueListenable: _index,
             builder: (_, i, __) => Text(
-              widget.channels[i].name,
+              _titleLine(widget.channels[i]),
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white),
             ),
           ),
+        ),
+        MaterialDesktopCustomButton(
+          icon: const Icon(Icons.list_alt),
+          onPressed: _showGuide,
         ),
         const MaterialFullscreenButton(),
       ],
@@ -185,7 +278,7 @@ class _PlayerPageState extends State<PlayerPage> {
         appBar: AppBar(
           title: ValueListenableBuilder<int>(
             valueListenable: _index,
-            builder: (_, i, __) => Text(widget.channels[i].name),
+            builder: (_, i, __) => _appBarTitle(widget.channels[i]),
           ),
         ),
         body: Video(
