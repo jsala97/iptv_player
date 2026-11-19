@@ -98,9 +98,6 @@ Future<void> loadAppearance() async {
 
 final cleanNamesNotifier = ValueNotifier<bool>(true);
 
-final _prefixRe =
-    RegExp(r'^\s*(?:[A-Za-z]{2,4}\s*[|:]|[A-Za-z]{2}\s*-)\s*');
-
 const _sup = {
   'ᴴ': 'H', 'ᴰ': 'D', 'ᴿ': 'R', 'ᴬ': 'A', 'ᵂ': 'W', 'ᶠ': 'F', 'ᵁ': 'U',
   'ᴷ': 'K', 'ˢ': 'S', 'ᴱ': 'E', 'ⱽ': 'V', 'ᴵ': 'I', 'ᴾ': 'P', '⁰': '0',
@@ -109,9 +106,34 @@ const _sup = {
 };
 final _supRe = RegExp('[${_sup.keys.join()}]+');
 
+final _splitRe = RegExp(r'^\s*([^:|\-]{1,12}?)\s*([|:\-])\s*(\S.*)$');
+
+({String prefix, String rest})? _split(String s) {
+  final m = _splitRe.firstMatch(s);
+  if (m == null) return null;
+  final p = m[1]!.trim();
+  if (p.isEmpty || (m[2] == '-' && p.length > 3)) return null;
+  return (prefix: p.toUpperCase(), rest: m[3]!);
+}
+
+final knownPrefixes = <String>{};
+
+/// Aprende qué prefijos se repiten lo suficiente como para ser etiquetas.
+void learnPrefixes(Iterable<String> names, {int minCount = 5}) {
+  final counts = <String, int>{};
+  for (final n in names) {
+    final sp = _split(n.replaceAll(RegExp(r'^[#\s]+'), ''));
+    if (sp != null) counts[sp.prefix] = (counts[sp.prefix] ?? 0) + 1;
+  }
+  knownPrefixes
+    ..clear()
+    ..addAll(counts.entries.where((e) => e.value >= minCount).map((e) => e.key));
+}
+
 String cleanName(String raw) {
   var s = raw.replaceAll(RegExp(r'^[#\s]+|[#\s]+$'), '');
-  s = s.replaceFirst(_prefixRe, '');
+  final sp = _split(s);
+  if (sp != null && knownPrefixes.contains(sp.prefix)) s = sp.rest;
   s = s.replaceAllMapped(
     _supRe,
     (m) => ' ${m[0]!.split('').map((c) => _sup[c] ?? c).join()}',

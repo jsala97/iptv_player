@@ -60,6 +60,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
     ]);
     _categories = results[0] as List<Category>;
     _channels = results[1] as List<Channel>;
+    learnPrefixes(_channels.map((c) => c.name));
     _favs = await FavoritesStore.load(widget.accountId);
     _recents = await RecentsStore.load(widget.accountId);
     _startEpg();
