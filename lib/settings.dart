@@ -98,17 +98,24 @@ Future<void> loadAppearance() async {
 
 final cleanNamesNotifier = ValueNotifier<bool>(true);
 
-final _prefixRe = RegExp(r'^\s*[A-Za-z]{2}\s*[|:\-]\s*');
-final _decoRe = RegExp('[\u02B0-\u02FF\u1D2C-\u1D6A\u2070-\u209F]+');
-final _tagRe = RegExp(
-  r'\b(?:hd|fhd|uhd|sd|4k|8k|raw|hevc|h265|1080p|720p|50fps|60fps)\b',
-  caseSensitive: false,
-);
+final _prefixRe =
+    RegExp(r'^\s*(?:[A-Za-z]{2,4}\s*[|:]|[A-Za-z]{2}\s*-)\s*');
+
+const _sup = {
+  'ᴴ': 'H', 'ᴰ': 'D', 'ᴿ': 'R', 'ᴬ': 'A', 'ᵂ': 'W', 'ᶠ': 'F', 'ᵁ': 'U',
+  'ᴷ': 'K', 'ˢ': 'S', 'ᴱ': 'E', 'ⱽ': 'V', 'ᴵ': 'I', 'ᴾ': 'P', '⁰': '0',
+  '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7',
+  '⁸': '8', '⁹': '9',
+};
+final _supRe = RegExp('[${_sup.keys.join()}]+');
 
 String cleanName(String raw) {
   var s = raw.replaceAll(RegExp(r'^[#\s]+|[#\s]+$'), '');
   s = s.replaceFirst(_prefixRe, '');
-  s = s.replaceAll(_decoRe, '').replaceAll(_tagRe, '');
+  s = s.replaceAllMapped(
+    _supRe,
+    (m) => ' ${m[0]!.split('').map((c) => _sup[c] ?? c).join()}',
+  );
   s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
   s = s.replaceAll(RegExp(r'^[|:\-\s]+|[|:\-\s]+$'), '');
   return s.isEmpty ? raw : s;

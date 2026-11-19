@@ -135,7 +135,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 SwitchListTile(
-                  title: const Text('Limpiar nombres de canales'),
+                  title: const Text('Quitar prefijos de los nombres de canales'),
                   value: _clean,
                   onChanged: (v) {
                     setState(() => _clean = v);
