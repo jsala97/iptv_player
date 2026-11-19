@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'category_prefs.dart';
@@ -51,7 +51,7 @@ class _SeriesPageState extends State<SeriesPage> {
     const ph = Center(child: Icon(Icons.tv, size: 40));
     if (url == null) return ph;
     return Image.network(url,
-        fit: BoxFit.cover, cacheWidth: 300, errorBuilder: (_, __, ___) => ph);
+        fit: BoxFit.cover, cacheWidth: 300, errorBuilder: (_, _, _) => ph);
   }
 
   void _play(Series s, List<Episode> eps, int i) {

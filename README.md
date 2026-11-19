@@ -49,3 +49,7 @@ Este proyecto es solo un reproductor. El usuario es responsable de usar únicame
 ## Estado
 
 Proyecto personal en desarrollo.
+
+## Licencia
+
+MIT. Ver el archivo [LICENSE](LICENSE).

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'category_prefs.dart';
@@ -55,7 +55,7 @@ class _MoviesPageState extends State<MoviesPage> {
       url,
       fit: BoxFit.cover,
       cacheWidth: 300,
-      errorBuilder: (_, __, ___) => placeholder,
+      errorBuilder: (_, _, _) => placeholder,
     );
   }
 

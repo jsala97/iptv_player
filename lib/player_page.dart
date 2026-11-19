@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -405,7 +405,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget _stalledOverlay() {
     return ValueListenableBuilder<bool>(
       valueListenable: _stalled,
-      builder: (_, stalled, __) {
+      builder: (_, stalled, _) {
         if (!stalled) return const SizedBox.shrink();
         return Center(
           child: Card(
@@ -463,7 +463,7 @@ class _PlayerPageState extends State<PlayerPage> {
         Expanded(
           child: ValueListenableBuilder<int>(
             valueListenable: _index,
-            builder: (_, i, __) => Text(
+            builder: (_, i, _) => Text(
               _titleLine(widget.channels[i]),
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white),
@@ -489,7 +489,7 @@ class _PlayerPageState extends State<PlayerPage> {
         appBar: AppBar(
           title: ValueListenableBuilder<int>(
             valueListenable: _index,
-            builder: (_, i, __) => _appBarTitle(widget.channels[i]),
+            builder: (_, i, _) => _appBarTitle(widget.channels[i]),
           ),
         ),
         body: Video(

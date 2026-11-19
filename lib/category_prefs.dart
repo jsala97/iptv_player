@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'iptv_source.dart';
 
@@ -52,8 +52,7 @@ Future<CategoryPrefs?> manageCategories(
           width: 420,
           height: 480,
           child: ReorderableListView(
-            onReorder: (o, n) => setS(() {
-              if (n > o) n--;
+            onReorderItem: (o, n) => setS(() {
               list.insert(n, list.removeAt(o));
             }),
             children: [

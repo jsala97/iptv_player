@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'epg.dart';
 import 'favorites_store.dart';
 import 'iptv_source.dart';
@@ -207,7 +207,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
               url,
               fit: BoxFit.contain,
               cacheWidth: 88,
-              errorBuilder: (_, __, ___) => icon,
+              errorBuilder: (_, _, _) => icon,
             ),
     );
   }

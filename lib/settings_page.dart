@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'settings.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -29,13 +29,15 @@ class _SettingsPageState extends State<SettingsPage> {
     final cl = await AppSettings.cleanNames();
     
 
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       _mode = m; 
       _accent = c;
       _audio = a;
       _sub = s;
       _clean = cl;
     });
+    }
   }
 
   Widget _dropdown(String value, Map<String, String> options,

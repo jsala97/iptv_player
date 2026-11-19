@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'progress_store.dart';

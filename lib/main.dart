@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'accounts_page.dart';
 import 'settings.dart';
@@ -17,9 +17,9 @@ class IptvApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeModeNotifier,
-      builder: (_, mode, __) => ValueListenableBuilder<Color>(
+      builder: (_, mode, _) => ValueListenableBuilder<Color>(
         valueListenable: accentNotifier,
-        builder: (_, accent, __) => MaterialApp(
+        builder: (_, accent, _) => MaterialApp(
           title: 'IPTV Player',
           debugShowCheckedModeBanner: false,
           themeMode: mode,

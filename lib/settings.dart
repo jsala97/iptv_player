@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const langNames = {
   'es': 'Español', 'en': 'Inglés', 'fr': 'Francés', 'de': 'Alemán',

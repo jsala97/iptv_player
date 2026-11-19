@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'account.dart';
-import 'channels_page.dart';
 import 'server_picker_page.dart';
 import 'speed_test_page.dart';
 import 'account_home_page.dart';
