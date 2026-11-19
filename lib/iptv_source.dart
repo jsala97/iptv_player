@@ -10,7 +10,9 @@ class Channel {
   final String categoryId;
   final String url;
   final String? epgId;
-  Channel(this.id, this.name, this.categoryId, this.url, {this.epgId});
+  //Channel(this.id, this.name, this.categoryId, this.url, {this.epgId});
+  final String? logo;
+  Channel(this.id, this.name, this.categoryId, this.url, {this.epgId, this.logo});
 }
 
 class Movie {

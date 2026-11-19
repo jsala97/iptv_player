@@ -145,18 +145,18 @@ class _PlayerPageState extends State<PlayerPage> {
 
   String _titleLine(Channel ch) {
     final now = widget.epgProvider?.call()?.nowOn(ch);
-    if (now == null) return ch.name;
-    return '${ch.name}  ·  ${_hhmm(now.start)}–${_hhmm(now.end)} ${now.title}';
+    if (now == null) return displayName(ch.name);
+    return '${displayName(ch.name)}  ·  ${_hhmm(now.start)}–${_hhmm(now.end)} ${now.title}';
   }
 
   Widget _appBarTitle(Channel ch) {
     final now = widget.epgProvider?.call()?.nowOn(ch);
-    if (now == null) return Text(ch.name);
+    if (now == null) return Text(displayName(ch.name));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(ch.name),
+        Text(displayName(ch.name)),
         Text(
           '${_hhmm(now.start)}–${_hhmm(now.end)}  ${now.title}',
           style: const TextStyle(fontSize: 12),

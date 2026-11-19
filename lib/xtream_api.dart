@@ -72,6 +72,7 @@ class XtreamApi implements IptvSource {
         '${e['category_id']}',
         '$base/live/$user/$pass/$id.$streamExt',
         epgId: e['epg_channel_id']?.toString(),
+        logo: _str(e['stream_icon']),
       );
     }).toList();
   }

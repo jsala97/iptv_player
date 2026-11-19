@@ -4,6 +4,7 @@ import 'favorites_store.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'recents_store.dart';
+import 'settings.dart';
 
 String _hhmm(DateTime d) {
   final l = d.toLocal();
@@ -168,6 +169,28 @@ class _ChannelsPageState extends State<ChannelsPage> {
     return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 
+  Widget _logo(Channel ch) {
+    const icon = Icon(Icons.tv);
+    final url = ch.logo;
+    return Container(
+      width: 44,
+      height: 44,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: url == null
+          ? icon
+          : Image.network(
+              url,
+              fit: BoxFit.contain,
+              cacheWidth: 88,
+              errorBuilder: (_, __, ___) => icon,
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,8 +301,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
                           final ch = visible[i];
                           final isFav = _favs.contains(ch.id);
                           return ListTile(
-                            leading: const Icon(Icons.tv),
-                            title: Text(ch.name),
+                            leading: _logo(ch),
+                            title: Text(displayName(ch.name)),
                             subtitle: _epgSubtitle(ch),
                             trailing: IconButton(
                               icon: Icon(isFav ? Icons.star : Icons.star_border),

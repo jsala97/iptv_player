@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
 const langNames = {
   'es': 'Español', 'en': 'Inglés', 'fr': 'Francés', 'de': 'Alemán',
@@ -65,4 +66,52 @@ class AppSettings {
     }
     await (await _p).setString('titlepref', jsonEncode(m));
   }
+  static Future<String> themeMode() async =>
+      (await _p).getString('theme_mode') ?? 'dark';
+  static Future<void> setThemeMode(String v) async =>
+      (await _p).setString('theme_mode', v);
+  static Future<int> accent() async =>
+      (await _p).getInt('accent') ?? 0xFF5B8DEF;
+  static Future<void> setAccent(int v) async =>
+      (await _p).setInt('accent', v);
+
+
+  static Future<bool> cleanNames() async =>
+      (await _p).getBool('clean_names') ?? true;
+  static Future<void> setCleanNames(bool v) async =>
+      (await _p).setBool('clean_names', v);
 }
+
+final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+final accentNotifier = ValueNotifier<Color>(const Color(0xFF5B8DEF));
+
+Future<void> loadAppearance() async {
+  final mode = await AppSettings.themeMode();
+  themeModeNotifier.value = switch (mode) {
+    'light' => ThemeMode.light,
+    'system' => ThemeMode.system,
+    _ => ThemeMode.dark,
+  };
+  accentNotifier.value = Color(await AppSettings.accent());
+  cleanNamesNotifier.value = await AppSettings.cleanNames();
+}
+
+final cleanNamesNotifier = ValueNotifier<bool>(true);
+
+final _prefixRe = RegExp(r'^\s*[A-Za-z]{2}\s*[|:\-]\s*');
+final _decoRe = RegExp('[\u02B0-\u02FF\u1D2C-\u1D6A\u2070-\u209F]+');
+final _tagRe = RegExp(
+  r'\b(?:hd|fhd|uhd|sd|4k|8k|raw|hevc|h265|1080p|720p|50fps|60fps)\b',
+  caseSensitive: false,
+);
+
+String cleanName(String raw) {
+  var s = raw.replaceAll(RegExp(r'^[#\s]+|[#\s]+$'), '');
+  s = s.replaceFirst(_prefixRe, '');
+  s = s.replaceAll(_decoRe, '').replaceAll(_tagRe, '');
+  s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+  s = s.replaceAll(RegExp(r'^[|:\-\s]+|[|:\-\s]+$'), '');
+  return s.isEmpty ? raw : s;
+}
+
+String displayName(String n) => cleanNamesNotifier.value ? cleanName(n) : n;
