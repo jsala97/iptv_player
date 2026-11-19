@@ -5,6 +5,7 @@ import 'iptv_source.dart';
 import 'player_page.dart';
 import 'recents_store.dart';
 import 'settings.dart';
+import 'category_prefs.dart';
 
 String _hhmm(DateTime d) {
   final l = d.toLocal();
@@ -35,6 +36,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
   static const _favCat = '__fav__';
   static const _recentCat = '__recent__';
 
+  CategoryPrefs _catPrefs = CategoryPrefs({}, []);
+
   late Future<void> _load;
   List<Category> _categories = [];
   List<Channel> _channels = [];
@@ -64,6 +67,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
     _favs = await FavoritesStore.load(widget.accountId);
     _recents = await RecentsStore.load(widget.accountId);
     _startEpg();
+    _catPrefs = await CategoryPrefs.load(widget.accountId, 'live');
   }
 
   String? _epgInfo;
@@ -152,8 +156,24 @@ class _ChannelsPageState extends State<ChannelsPage> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _manageCats() async {
+    final res = await manageCategories(context, _categories, _catPrefs);
+    if (res == null) return;
+    await res.save(widget.accountId, 'live');
+    if (!mounted) return;
+    setState(() {
+      _catPrefs = res;
+      if (_selectedCat != null && res.hidden.contains(_selectedCat)) {
+        _selectedCat = null;
+      }
+    });
+  }
+
+
+
   bool _inSelectedCategory(Channel c) {
-    if (_selectedCat == null) return true;
+    if (_selectedCat == null) return !_catPrefs.hidden.contains(c.categoryId);
+    //if (_selectedCat == null) return true;
     if (_selectedCat == _favCat) return _favs.contains(c.id);
     if (_selectedCat == _recentCat) return _recents.contains(c.id);
     return c.categoryId == _selectedCat;
@@ -198,6 +218,11 @@ class _ChannelsPageState extends State<ChannelsPage> {
       appBar: AppBar(
         title: const Text('Canales en directo'),
         actions: [
+          IconButton(
+            tooltip: 'Gestionar categorías',
+            icon: const Icon(Icons.tune),
+            onPressed: _manageCats,
+          ),
           if (widget.epgUrl != null) ...[
             if (_epgLoading)
               const Padding(
@@ -260,7 +285,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
                       selected: _selectedCat == _favCat,
                       onTap: () => setState(() => _selectedCat = _favCat),
                     ),
-                    for (final cat in _categories)
+                    for (final cat in _catPrefs.apply(_categories))
                       ListTile(
                         title: Text(cat.name),
                         selected: _selectedCat == cat.id,
