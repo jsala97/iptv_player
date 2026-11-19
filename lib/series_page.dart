@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
+import 'category_prefs.dart';
 
 class SeriesPage extends StatefulWidget {
   final IptvSource source;
   final String accountId;
   const SeriesPage({super.key, required this.source,required this.accountId});
+  
   
 
   @override
@@ -18,6 +20,7 @@ class _SeriesPageState extends State<SeriesPage> {
   List<Series> _items = [];
   String? _cat;
   String _q = '';
+  CategoryPrefs _catPrefs = CategoryPrefs({}, []);
 
   Future<void> _fetch() async {
     final r = await Future.wait([
@@ -28,6 +31,20 @@ class _SeriesPageState extends State<SeriesPage> {
     final l = r[1] as List<Series>;
     l.sort((a, b) => (b.added ?? 0).compareTo(a.added ?? 0));
     _items = l;
+    _catPrefs = await CategoryPrefs.load(widget.accountId, 'series');
+  }
+
+  Future<void> _manageCats() async {
+    final res = await manageCategories(context, _cats, _catPrefs);
+    if (res == null) return;
+    await res.save(widget.accountId, 'series');
+    if (!mounted) return;
+    setState(() {
+      _catPrefs = res;
+      if (_cat != null && res.hidden.contains(_cat)) {
+        _cat = null;
+      }
+    });
   }
 
   Widget _cover(String? url) {
@@ -134,7 +151,16 @@ class _SeriesPageState extends State<SeriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Series')),
+      appBar: AppBar(
+        title: const Text('Series'),
+        actions: [
+          IconButton(
+            tooltip: 'Gestionar categorías',
+            icon: const Icon(Icons.tune),
+            onPressed: _manageCats,
+          ),
+        ],
+      ),
       body: FutureBuilder<void>(
         future: _load,
         builder: (context, snap) {
@@ -148,7 +174,7 @@ class _SeriesPageState extends State<SeriesPage> {
           final q = _q.toLowerCase();
           final visible = _items
               .where((s) =>
-                  (_cat == null || s.categoryId == _cat) &&
+                  (_cat == null ? !_catPrefs.hidden.contains(s.categoryId) : s.categoryId == _cat) &&
                   s.name.toLowerCase().contains(q))
               .toList();
           return Row(
@@ -162,7 +188,7 @@ class _SeriesPageState extends State<SeriesPage> {
                       selected: _cat == null,
                       onTap: () => setState(() => _cat = null),
                     ),
-                    for (final c in _cats)
+                    for (final c in _catPrefs.apply(_cats))
                       ListTile(
                         title: Text(c.name),
                         selected: _cat == c.id,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
+import 'category_prefs.dart';
 
 class MoviesPage extends StatefulWidget {
   final IptvSource source;
@@ -19,6 +20,8 @@ class _MoviesPageState extends State<MoviesPage> {
   String? _selectedCat;
   String _search = '';
 
+  CategoryPrefs _catPrefs = CategoryPrefs({}, []);
+
   Future<void> _fetch() async {
     final results = await Future.wait([
       widget.source.vodCategories(),
@@ -29,6 +32,20 @@ class _MoviesPageState extends State<MoviesPage> {
     // Lo más reciente primero.
     movies.sort((a, b) => (b.added ?? 0).compareTo(a.added ?? 0));
     _movies = movies;
+    _catPrefs = await CategoryPrefs.load(widget.accountId, 'movies');
+  }
+
+  Future<void> _manageCats() async {
+    final res = await manageCategories(context, _categories, _catPrefs);
+    if (res == null) return;
+    await res.save(widget.accountId, 'movies');
+    if (!mounted) return;
+    setState(() {
+      _catPrefs = res;
+      if (_selectedCat != null && res.hidden.contains(_selectedCat)) {
+        _selectedCat = null;
+      }
+    });
   }
 
   Widget _poster(String? url) {
@@ -142,7 +159,16 @@ class _MoviesPageState extends State<MoviesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Películas')),
+      appBar: AppBar(
+        title: const Text('Películas'),
+        actions: [
+          IconButton(
+            tooltip: 'Gestionar categorías',
+            icon: const Icon(Icons.tune),
+            onPressed: _manageCats,
+          ),
+        ],
+      ),
       body: FutureBuilder<void>(
         future: _load,
         builder: (context, snap) {
@@ -160,7 +186,9 @@ class _MoviesPageState extends State<MoviesPage> {
 
           final q = _search.toLowerCase();
           final visible = _movies.where((m) {
-            final inCat = _selectedCat == null || m.categoryId == _selectedCat;
+              final inCat = _selectedCat == null
+                ? !_catPrefs.hidden.contains(m.categoryId)
+                : m.categoryId == _selectedCat;
             return inCat && m.name.toLowerCase().contains(q);
           }).toList();
 
@@ -175,7 +203,7 @@ class _MoviesPageState extends State<MoviesPage> {
                       selected: _selectedCat == null,
                       onTap: () => setState(() => _selectedCat = null),
                     ),
-                    for (final cat in _categories)
+                    for (final cat in _catPrefs.apply(_categories))
                       ListTile(
                         title: Text(cat.name),
                         selected: _selectedCat == cat.id,
