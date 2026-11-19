@@ -62,6 +62,7 @@ class _PlayerPageState extends State<PlayerPage> {
   final List<StreamSubscription> _subs = [];
   Timer? _watchdog;
   Timer? _progressTimer;
+  Timer? _bufferTimer;
   bool _playedOk = false;
   bool _tracksApplied = false;
 
@@ -81,7 +82,17 @@ class _PlayerPageState extends State<PlayerPage> {
     _subs.add(player.stream.tracks.listen(_applyTrackPrefs));
     _progressTimer =
       Timer.periodic(const Duration(seconds: 10), (_) => _saveProgress());
-    _openChannel();
+    _subs.add(player.stream.buffering.listen((b) {
+      _bufferTimer?.cancel();
+      if (b && _playedOk) {
+        _bufferTimer = Timer(const Duration(seconds: 20), () {
+          if (mounted) _stalled.value = true;
+        });
+      } else if (!b && _playedOk && _stalled.value) {
+        _stalled.value = false;
+      }
+    }));
+    _tune().then((_) => _openChannel());
 
   }
 
@@ -90,6 +101,9 @@ class _PlayerPageState extends State<PlayerPage> {
     _saveProgress();
     _progressTimer?.cancel();
     _watchdog?.cancel();
+    _bufferTimer?.cancel();
+    AppSettings.setVolume(player.state.volume);
+
     for (final s in _subs) {
       s.cancel();
     }
@@ -115,6 +129,13 @@ class _PlayerPageState extends State<PlayerPage> {
     final saved =
         acc == null ? null : await ProgressStore.positionFor(acc, _current.id);
     if (!mounted) return;
+    _bufferTimer?.cancel();
+    try {
+      final p = player.platform as dynamic;
+      final live = widget.accountId == null;
+      await p.setProperty('demuxer-lavf-analyzeduration', live ? '2' : '0');
+      await p.setProperty('demuxer-lavf-probesize', live ? '1000000' : '5000000');
+    } catch (_) {}
     player.open(Media(_current.url));
     if (saved != null) {
       player.stream.duration
@@ -124,6 +145,19 @@ class _PlayerPageState extends State<PlayerPage> {
           .catchError((_) {});
     }
     _watchdog = Timer(const Duration(seconds: 15), _markStalled);
+  }
+
+  Future<void> _tune() async {
+    final p = player.platform as dynamic;
+    try {
+      await p.setProperty('network-timeout', '10');
+      await p.setProperty('cache', 'yes');
+      await p.setProperty('demuxer-readahead-secs', '20');
+      await p.setProperty('demuxer-max-bytes', '64MiB');
+      await p.setProperty('stream-lavf-o',
+          'reconnect=1,reconnect_streamed=1,reconnect_delay_max=5');
+      await player.setVolume(await AppSettings.volume());
+    } catch (_) {}
   }
 
   void _saveProgress() {

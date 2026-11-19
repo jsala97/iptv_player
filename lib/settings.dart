@@ -80,6 +80,11 @@ class AppSettings {
       (await _p).getBool('clean_names') ?? true;
   static Future<void> setCleanNames(bool v) async =>
       (await _p).setBool('clean_names', v);
+
+  static Future<double> volume() async =>
+      (await _p).getDouble('volume') ?? 100;
+  static Future<void> setVolume(double v) async =>
+      (await _p).setDouble('volume', v);
 }
 
 final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);

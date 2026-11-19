@@ -1,17 +1,51 @@
-# iptv_player
+# IPTV Player
 
-A new Flutter project.
+Reproductor IPTV de escritorio para Windows, hecho con Flutter.
+Reproduce las listas que tú añadas (Xtream Codes o M3U). **No incluye canales ni contenido de ningún tipo.**
 
-## Getting Started
+## Funciones
 
-This project is a starting point for a Flutter application.
+- Cuentas Xtream (varios servidores por cuenta con test de velocidad) y listas M3U por URL
+- Canales en directo: buscador, favoritos, recientes y guía de programación (EPG)
+- Películas y series, con "continuar viendo", audio y subtítulos
+- Ocultar y ordenar categorías, tema claro/oscuro y color de acento
+- Credenciales guardadas cifradas con el almacén seguro de Windows
+- Cambio de canal desde el reproductor y atajos de teclado
 
-A few resources to get you started if this is your first Flutter project:
+## Requisitos
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- [Flutter](https://docs.flutter.dev/get-started/install/windows/desktop)
+- Visual Studio con la carga de trabajo "Desarrollo para el escritorio con C++"
+  (y el componente "ATL de C++" si la compilación lo pide)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Ejecutar
+
+```
+flutter pub get
+flutter run -d windows
+```
+
+## Atajos del reproductor
+
+| Tecla         | Acción                     |
+| ------------- | -------------------------- |
+| Espacio       | Pausa / play               |
+| ← / →         | Retroceder / avanzar 10 s  |
+| ↑ / ↓         | Volumen                    |
+| M             | Silenciar                  |
+| AvPág / RePág | Canal siguiente / anterior |
+| F / F11 / Esc | Pantalla completa / salir  |
+| I             | Guía del canal             |
+| S             | Audio y subtítulos         |
+
+## Privacidad
+
+Todo se guarda en tu equipo. La app no envía datos a terceros salvo las peticiones a los servidores que tú configures y, opcionalmente, al servidor de pruebas de velocidad.
+
+## Aviso legal
+
+Este proyecto es solo un reproductor. El usuario es responsable de usar únicamente listas y contenidos a los que tenga derecho legítimo de acceso.
+
+## Estado
+
+Proyecto personal en desarrollo.
