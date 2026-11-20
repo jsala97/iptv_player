@@ -3,6 +3,7 @@ import 'category_prefs.dart';
 import 'favorites_store.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
+import 'tmdb.dart';
 
 class SeriesPage extends StatefulWidget {
   final IptvSource source;
@@ -85,7 +86,7 @@ class _SeriesPageState extends State<SeriesPage> {
   }
 
   // Lista de temporadas y episodios dentro del cuadro de una serie.
-  Widget _episodesView(BuildContext ctx, Series s, List<Episode> eps) {
+  Widget _episodesView(BuildContext ctx, Series s, List<Episode> eps, TmdbInfo? tmdb) {
     eps.sort((a, b) {
       final c = a.season.compareTo(b.season);
       return c != 0 ? c : a.number.compareTo(b.number);
@@ -94,36 +95,28 @@ class _SeriesPageState extends State<SeriesPage> {
 
     return ListView(
       children: [
-        if (s.plot != null)
+        if (tmdb != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TmdbBlock(tmdb),
+          )
+        else if (s.plot != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(s.plot!, maxLines: 4, overflow: TextOverflow.ellipsis),
           ),
-          for (final n in seasons) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Text(
-              'Temporada $n',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          for (final e in eps.where((e) => e.season == n))
-            ListTile(
-              dense: true,
-              leading: Text('${e.number}'),
-              title: Text(e.title),
-              onTap: () {
-                Navigator.pop(ctx);
-                _play(s, eps, eps.indexOf(e));
-              },
-            ),
-        ],
       ],
     );
   }
 
+  Future<(List<Episode>, TmdbInfo?)> _loadSeries(Series s) async {
+    final tf = Tmdb.lookup('tv', s.name);
+    final eps = await widget.source.episodes(s);
+    return (eps, await tf);
+  }
+
   void _open(Series s) {
-    final future = widget.source.episodes(s);
+    final future = _loadSeries(s);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -144,17 +137,17 @@ class _SeriesPageState extends State<SeriesPage> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: FutureBuilder<List<Episode>>(
+                child: FutureBuilder<(List<Episode>, TmdbInfo?)>(
                   future: future,
                   builder: (context, snap) {
                     if (snap.connectionState != ConnectionState.done) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final eps = snap.data;
+                    final eps = snap.data?.$1;
                     if (snap.hasError || eps == null || eps.isEmpty) {
                       return const Text('No hay episodios disponibles.');
                     }
-                    return _episodesView(ctx, s, eps);
+                    return _episodesView(ctx, s, eps, snap.data?.$2);
                   },
                 ),
               ),
@@ -169,7 +162,7 @@ class _SeriesPageState extends State<SeriesPage> {
         ],
       ),
     );
-  }
+  }  
 
   Widget _sidebar() {
     final favCount = _favs.where((k) => k.startsWith('s')).length;

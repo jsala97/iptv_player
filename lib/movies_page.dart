@@ -3,6 +3,7 @@ import 'iptv_source.dart';
 import 'player_page.dart';
 import 'category_prefs.dart';
 import 'favorites_store.dart';
+import 'tmdb.dart';
 
 class MoviesPage extends StatefulWidget {
   final IptvSource source;
@@ -84,8 +85,40 @@ class _MoviesPageState extends State<MoviesPage> {
     );
   }
 
+    Widget _providerBlock(Movie m, MovieInfo i) {
+    final meta = [
+      i.releaseDate,
+      i.duration,
+      if (m.rating != null) '★ ${m.rating}',
+      i.genre,
+    ].whereType<String>().where((s) => s.isNotEmpty).join('  ·  ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (meta.isNotEmpty) Text(meta),
+        if (i.plot != null) ...[const SizedBox(height: 12), Text(i.plot!)],
+        if (i.director != null) ...[
+          const SizedBox(height: 12),
+          Text('Director: ${i.director}'),
+        ],
+        if (i.cast != null) ...[
+          const SizedBox(height: 8),
+          Text('Reparto: ${i.cast}'),
+        ],
+      ],
+    );
+  }
+
+  Future<(MovieInfo?, TmdbInfo?)> _loadInfo(Movie m) async {
+    final pf = widget.source
+        .movieInfo(m)
+        .then<MovieInfo?>((v) => v, onError: (_) => null);
+    final tf = Tmdb.lookup('movie', m.name);
+    return (await pf, await tf);
+  }
+
   void _open(Movie m) {
-    final infoFuture = widget.source.movieInfo(m);
+    final future = _loadInfo(m);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -106,44 +139,23 @@ class _MoviesPageState extends State<MoviesPage> {
               ),
               const SizedBox(width: 20),
               Expanded(
-                child: FutureBuilder<MovieInfo?>(
-                  future: infoFuture,
-                  builder: (_, snap) {
+                child: FutureBuilder<(MovieInfo?, TmdbInfo?)>(
+                  future: future,
+                  builder: (context, snap) {
                     if (snap.connectionState != ConnectionState.done) {
                       return const Center(child: CircularProgressIndicator());
                     }
-                    final i = snap.data;
-                    if (snap.hasError || i == null) {
-                      return const Text(
-                        'No hay más información de esta película.',
+                    final provider = snap.data?.$1;
+                    final tmdb = snap.data?.$2;
+                    if (tmdb != null) {
+                      return SingleChildScrollView(child: TmdbBlock(tmdb));
+                    }
+                    if (provider != null) {
+                      return SingleChildScrollView(
+                        child: _providerBlock(m, provider),
                       );
                     }
-                    final meta = [
-                      i.releaseDate,
-                      i.duration,
-                      if (m.rating != null) '★ ${m.rating}',
-                      i.genre,
-                    ].whereType<String>().where((s) => s.isNotEmpty).join('  ·  ');
-                    return SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (meta.isNotEmpty) Text(meta),
-                          if (i.plot != null) ...[
-                            const SizedBox(height: 12),
-                            Text(i.plot!),
-                          ],
-                          if (i.director != null) ...[
-                            const SizedBox(height: 12),
-                            Text('Director: ${i.director}'),
-                          ],
-                          if (i.cast != null) ...[
-                            const SizedBox(height: 8),
-                            Text('Reparto: ${i.cast}'),
-                          ],
-                        ],
-                      ),
-                    );
+                    return const Text('No hay más información de esta película.');
                   },
                 ),
               ),

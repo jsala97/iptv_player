@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const langNames = {
   'es': 'Español', 'en': 'Inglés', 'fr': 'Francés', 'de': 'Alemán',
@@ -85,6 +86,20 @@ class AppSettings {
       (await _p).getDouble('volume') ?? 100;
   static Future<void> setVolume(double v) async =>
       (await _p).setDouble('volume', v);
+
+  static const _secure = FlutterSecureStorage();
+
+  static Future<String> tmdbKey() async =>
+      (await _secure.read(key: 'tmdb_key')) ?? '';
+
+  static Future<void> setTmdbKey(String v) async {
+    if (v.trim().isEmpty) {
+      await _secure.delete(key: 'tmdb_key');
+    } else {
+      await _secure.write(key: 'tmdb_key', value: v.trim());
+    }
+  }
+
 }
 
 final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);

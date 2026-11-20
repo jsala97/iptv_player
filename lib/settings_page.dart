@@ -14,6 +14,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _mode = 'dark';
   int _accent = 0xFF5B8DEF;
   bool _clean = true;
+  final _tmdbKey = TextEditingController();
 
   @override
   void initState() {
@@ -27,15 +28,18 @@ class _SettingsPageState extends State<SettingsPage> {
     final m = await AppSettings.themeMode(); 
     final c = await AppSettings.accent();
     final cl = await AppSettings.cleanNames();
+
     
 
     if (mounted) {
+      final k = await AppSettings.tmdbKey();
       setState(() {
       _mode = m; 
       _accent = c;
       _audio = a;
       _sub = s;
       _clean = cl;
+      _tmdbKey.text = k;
     });
     }
   }
@@ -145,6 +149,28 @@ class _SettingsPageState extends State<SettingsPage> {
                     cleanNamesNotifier.value = v;
                   },
                 ),
+
+                ListTile(
+                  title: TextField(
+                    controller: _tmdbKey,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Token de TMDB (opcional)',
+                    ),
+                    onChanged: AppSettings.setTmdbKey,
+                  ),
+                ),
+                const Text(
+                  'Con el token, las fichas de películas y series se completan con TMDB: sinopsis en español, reparto, puntuación y tráiler.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.',
+                  style: TextStyle(fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
+
                 const SizedBox(height: 16),
                 const Text(
                   'Se aplican al abrir una película o serie. Si el vídeo no tiene ese idioma o está mal etiquetado, se deja la pista por defecto. Lo que elijas a mano se recuerda para ese título.',
