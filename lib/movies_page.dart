@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'iptv_source.dart';
 import 'player_page.dart';
 import 'category_prefs.dart';
+import 'favorites_store.dart';
 
 class MoviesPage extends StatefulWidget {
   final IptvSource source;
@@ -22,6 +23,9 @@ class _MoviesPageState extends State<MoviesPage> {
 
   CategoryPrefs _catPrefs = CategoryPrefs({}, []);
 
+  static const _favCat = '__fav__';
+  Set<String> _favs = {};
+
   Future<void> _fetch() async {
     final results = await Future.wait([
       widget.source.vodCategories(),
@@ -33,6 +37,8 @@ class _MoviesPageState extends State<MoviesPage> {
     movies.sort((a, b) => (b.added ?? 0).compareTo(a.added ?? 0));
     _movies = movies;
     _catPrefs = await CategoryPrefs.load(widget.accountId, 'movies');
+
+    _favs = await FavoritesStore.load(widget.accountId);
   }
 
   Future<void> _manageCats() async {
@@ -47,6 +53,12 @@ class _MoviesPageState extends State<MoviesPage> {
       }
     });
   }
+
+  Future<void> _toggleFav(Movie m) async {
+    final s = await FavoritesStore.toggle(widget.accountId, 'm${m.id}');
+    if (mounted) setState(() => _favs = s);
+  }
+
 
   Widget _poster(String? url) {
     const placeholder = Center(child: Icon(Icons.movie, size: 40));
@@ -186,9 +198,11 @@ class _MoviesPageState extends State<MoviesPage> {
 
           final q = _search.toLowerCase();
           final visible = _movies.where((m) {
-              final inCat = _selectedCat == null
+            final inCat = _selectedCat == null
                 ? !_catPrefs.hidden.contains(m.categoryId)
-                : m.categoryId == _selectedCat;
+                : _selectedCat == _favCat
+                    ? _favs.contains('m${m.id}')
+                    : m.categoryId == _selectedCat;
             return inCat && m.name.toLowerCase().contains(q);
           }).toList();
 
@@ -202,6 +216,14 @@ class _MoviesPageState extends State<MoviesPage> {
                       title: const Text('Todas'),
                       selected: _selectedCat == null,
                       onTap: () => setState(() => _selectedCat = null),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.star),
+                      title: Text(
+                        'Favoritas (${_favs.where((k) => k.startsWith('m')).length})',
+                      ),
+                      selected: _selectedCat == _favCat,
+                      onTap: () => setState(() => _selectedCat = _favCat),
                     ),
                     for (final cat in _catPrefs.apply(_categories))
                       ListTile(
@@ -248,8 +270,28 @@ class _MoviesPageState extends State<MoviesPage> {
                                 Expanded(
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: SizedBox.expand(
-                                      child: _poster(m.icon),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        _poster(m.icon),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: IconButton(
+                                            iconSize: 20,
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.black54,
+                                            ),
+                                            icon: Icon(
+                                              _favs.contains('m${m.id}')
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: Colors.amber,
+                                            ),
+                                            onPressed: () => _toggleFav(m),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),

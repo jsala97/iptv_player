@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'epg.dart';
 import 'iptv_source.dart';
@@ -125,9 +125,9 @@ class _GuidePageState extends State<GuidePage> {
         waitDuration: const Duration(milliseconds: 500),
         child: Material(
           color: isNow
-              //? const Color(0xFFffffff).withValues(alpha: 0.35)
+              ? const Color(0xFFffffff).withValues(alpha: 0.35)
               //? cs.primary.withValues(alpha: 0.35)
-              ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.35)
+              //? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black).withValues(alpha: 0.35)
               : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
           clipBehavior: Clip.antiAlias,

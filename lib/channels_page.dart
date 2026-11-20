@@ -151,10 +151,8 @@ class _ChannelsPageState extends State<ChannelsPage> {
   }
 
   Future<void> _toggleFav(Channel ch) async {
-    setState(() {
-      if (!_favs.add(ch.id)) _favs.remove(ch.id);
-    });
-    await FavoritesStore.save(widget.accountId, _favs);
+    final s = await FavoritesStore.toggle(widget.accountId, ch.id);
+    if (mounted) setState(() => _favs = s);
   }
 
   Future<void> _markRecent(Channel ch) async {
@@ -319,7 +317,9 @@ class _ChannelsPageState extends State<ChannelsPage> {
                     ),
                     ListTile(
                       leading: const Icon(Icons.star),
-                      title: Text('Favoritos (${_favs.length})'),
+                      title: Text(
+                        'Favoritos (${_channels.where((c) => _favs.contains(c.id)).length})',
+                      ),
                       selected: _selectedCat == _favCat,
                       onTap: () => setState(() => _selectedCat = _favCat),
                     ),
