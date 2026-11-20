@@ -6,6 +6,7 @@ import 'player_page.dart';
 import 'recents_store.dart';
 import 'settings.dart';
 import 'category_prefs.dart';
+import 'guide_page.dart';
 
 String _hhmm(DateTime d) {
   final l = d.toLocal();
@@ -41,6 +42,7 @@ class _ChannelsPageState extends State<ChannelsPage> {
   late Future<void> _load;
   List<Category> _categories = [];
   List<Channel> _channels = [];
+  List<Channel>? _guideChannels;
   Set<String> _favs = {};
   List<String> _recents = [];
   String? _selectedCat;
@@ -107,6 +109,30 @@ class _ChannelsPageState extends State<ChannelsPage> {
         if (mounted) setState(() => _epgLoading = false);
       }
     }();
+  }
+
+  void _openGuide() {
+    final epg = _epg;
+    if (epg == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La guía aún no está cargada')),
+      );
+      return;
+    }
+    final q = _search.toLowerCase();
+    final list = _channels
+        .where((c) =>
+            _inSelectedCategory(c) &&
+            c.name.toLowerCase().contains(q) &&
+            epg.hasData(c))
+        .toList();
+    if (list.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay canales con guía en esta vista')),
+      );
+      return;
+    }
+    setState(() => _guideChannels = list);
   }
 
   String? _epgStatus() {
@@ -224,6 +250,11 @@ class _ChannelsPageState extends State<ChannelsPage> {
             onPressed: _manageCats,
           ),
           if (widget.epgUrl != null) ...[
+            IconButton(
+              tooltip: 'Guía',
+              icon: const Icon(Icons.calendar_view_day),
+              onPressed: _openGuide,
+            ),
             if (_epgLoading)
               const Padding(
                 padding: EdgeInsets.all(16),
@@ -241,7 +272,14 @@ class _ChannelsPageState extends State<ChannelsPage> {
           ],
         ],
       ),
-      body: FutureBuilder<void>(
+      body: (_guideChannels != null && _epg != null)
+          ? GuidePage(
+              channels: _guideChannels!,
+              epg: _epg!,
+              onPlay: _play,
+              onClose: () => setState(() => _guideChannels = null),
+            )
+          : FutureBuilder<void>(
         future: _load,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
