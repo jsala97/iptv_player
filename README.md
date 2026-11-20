@@ -42,9 +42,13 @@ flutter run -d windows
 
 Todo se guarda en tu equipo. La app no envía datos a terceros salvo las peticiones a los servidores que tú configures y, opcionalmente, al servidor de pruebas de velocidad.
 
+Opcionalmente, si pones un token de [TMDB](https://www.themoviedb.org) en Ajustes, la app envía a TMDB el título de lo que abres para completar la ficha (sinopsis, reparto, tráiler). Sin token no se envía nada.
+
 ## Aviso legal
 
 Este proyecto es solo un reproductor. El usuario es responsable de usar únicamente listas y contenidos a los que tenga derecho legítimo de acceso.
+
+Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.
 
 ## Estado
 
